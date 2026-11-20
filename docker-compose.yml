@@ -1,0 +1,55 @@
+name: pixelsky
+services:
+  pixelsky:
+    image: pixelsky:latest
+    build: .
+    container_name: pixelsky
+    restart: unless-stopped
+    ports:
+      - "8788:8788"
+    environment:
+      - PIXELSKY_DATA_DIR=/data
+      # Opcional: define o IP Tailscale (100.x.y.z) ou nome MagicDNS (ex.: casaos.tail123.ts.net)
+      # para aparecer no modal "Telemovel / LAN" mesmo com o contentor em modo bridge.
+      # - PIXELSKY_TAILSCALE_HOST=
+      # - PIXELSKY_ALLOWED_HOSTS=
+    volumes:
+      - /DATA/AppData/pixelsky:/data
+    x-casaos:
+      envs:
+        - container: PIXELSKY_DATA_DIR
+          description:
+            en_us: Directory inside the container for config.json and user_data.json
+            pt_pt: Diretoria no contentor para config.json e user_data.json
+        - container: PIXELSKY_TAILSCALE_HOST
+          description:
+            en_us: Optional Tailscale IP or MagicDNS hostname (e.g. casaos.tail123.ts.net)
+            pt_pt: Opcional - IP ou hostname MagicDNS do Tailscale (ex. casaos.tail123.ts.net)
+      ports:
+        - container: "8788"
+          description:
+            en_us: PixelSky Web UI port
+            pt_pt: Porta da interface Web do PixelSky
+      volumes:
+        - container: /data
+          description:
+            en_us: Persistent storage for credentials, saved posts, drafts, and settings
+            pt_pt: Armazenamento persistente de credenciais, guardados, rascunhos e preferencias
+
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+  main: pixelsky
+  description:
+    en_us: Photo-first local-first web client for Pixelfed and Bluesky / Flashes with cross-posting, AI alt-text, and LAN/Tailscale support.
+    pt_pt: Cliente web photo-first e local-first para Pixelfed e Bluesky / Flashes com publicacao cruzada, Alt-Text IA e suporte LAN/Tailscale.
+  tagline:
+    en_us: Photo-first Pixelfed & Bluesky client
+    pt_pt: Cliente photo-first Pixelfed e Bluesky
+  title:
+    en_us: PixelSky
+  index: /
+  port_map: "8788"
+  scheme: http
+  store_app_id: pixelsky

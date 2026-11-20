@@ -1,0 +1,11 @@
+.git
+.gitignore
+.DS_Store
+__pycache__
+*.pyc
+tests
+PROGRESS.md
+config.json
+user_data.json
+scheduled_posts.json
+config.example.json

@@ -1,0 +1,20 @@
+# Dados locais sensíveis e estado do utilizador
+config.json
+user_data.json
+scheduled_posts.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+*.egg-info/
+.venv/
+venv/
+
+# Sistema / IDE
+.DS_Store
+*.swp
+*.swo
+.vscode/
+.idea/

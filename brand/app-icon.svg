@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="psGradApp" x1="64" y1="64" x2="448" y2="448" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF5E7E"/>
+      <stop offset="50%" stop-color="#A855F7"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#0B0D12"/>
+  <rect x="64" y="64" width="384" height="384" rx="92" stroke="url(#psGradApp)" stroke-width="28"/>
+  <circle cx="256" cy="256" r="88" stroke="url(#psGradApp)" stroke-width="28"/>
+  <circle cx="368" cy="144" r="22" fill="#38BDF8"/>
+</svg>
