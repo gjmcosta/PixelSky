@@ -2749,6 +2749,7 @@ class Pixelfed:
             "quote": quote,
             "replies": x.get("replies_count", 0), "boosts": x.get("reblogs_count", 0), "likes": x.get("favourites_count", 0),
             "liked": bool(x.get("favourited")), "boosted": bool(x.get("reblogged")),
+            "bookmarked": bool(x.get("bookmarked")),
             "is_own": bool(my_id and str(a.get("id")) == my_id),
             "url": safe_url(x.get("url")), "ref": {"id": x["id"]}, "reply_to": rt,
             "is_reply": bool(x.get("in_reply_to_id")),
@@ -2818,6 +2819,9 @@ class Pixelfed:
             return self._fetch_statuses("/api/v1/timelines/public", cursor=cursor, params={"only_media": "true"})
         except Exception:
             return self._fetch_statuses("/api/v1/trends/statuses", cursor=cursor)
+
+    def bookmarks(self, cursor=None):
+        return self._fetch_statuses("/api/v1/bookmarks", cursor=cursor)
 
     def get_lists(self):
         r = self.call("GET", "/api/v1/lists")
@@ -3084,6 +3088,8 @@ class Pixelfed:
             "unlike": f"/api/v1/statuses/{ref['id']}/unfavourite",
             "boost": f"/api/v1/statuses/{ref['id']}/reblog",
             "unboost": f"/api/v1/statuses/{ref['id']}/unreblog",
+            "bookmark": f"/api/v1/statuses/{ref['id']}/bookmark",
+            "unbookmark": f"/api/v1/statuses/{ref['id']}/unbookmark",
         }
         if action not in endpoints:
             raise ApiError(f"Ação desconhecida: {action}")
@@ -3210,6 +3216,82 @@ class Pixelfed:
 
 
 Masto = Pixelfed
+
+_OAUTH_PENDING = {}
+_OAUTH_LOCK = threading.Lock()
+
+
+def start_pixelfed_oauth(instance_str, callback_origin):
+    """Regista a aplicação OAuth 2.0 na instância Pixelfed e devolve o URL de autorização."""
+    inst = sanitize_pixelfed_instance(instance_str or "https://pixelfed.de")
+    if not inst:
+        raise ValueError("Instância Pixelfed inválida.")
+    _validate_remote_http_url(inst)
+    origin = (callback_origin or f"http://127.0.0.1:{PORT}").strip().rstrip("/")
+    redirect_uri = f"{origin}/api/pixelfed/oauth/callback"
+    scopes = "read write follow"
+    app_data = http("POST", f"{inst}/api/v1/apps", data={
+        "client_name": "PixelSky",
+        "redirect_uris": redirect_uri,
+        "scopes": scopes,
+        "website": "https://github.com/gjmcosta/PixelSky"
+    })
+    cid = (app_data or {}).get("client_id")
+    csec = (app_data or {}).get("client_secret")
+    if not cid or not csec:
+        raise ApiError("A instância Pixelfed não devolveu client_id/client_secret OAuth.")
+    state = secrets.token_urlsafe(24)
+    now_ts = time.time()
+    with _OAUTH_LOCK:
+        expired = [k for k, v in _OAUTH_PENDING.items() if now_ts - v.get("created_at", 0) > 900]
+        for k in expired:
+            _OAUTH_PENDING.pop(k, None)
+        _OAUTH_PENDING[state] = {
+            "instance": inst,
+            "client_id": cid,
+            "client_secret": csec,
+            "redirect_uri": redirect_uri,
+            "scopes": scopes,
+            "created_at": now_ts,
+        }
+    auth_qs = urllib.parse.urlencode({
+        "client_id": cid,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": scopes,
+        "state": state,
+    })
+    return {
+        "instance": inst,
+        "authorize_url": f"{inst}/oauth/authorize?{auth_qs}",
+        "state": state,
+    }
+
+
+def complete_pixelfed_oauth(code, state):
+    """Troca o authorization code OAuth 2.0 por um access_token no Pixelfed."""
+    code = (code or "").strip()
+    state = (state or "").strip()
+    if not code or not state:
+        raise ValueError("Parâmetros OAuth code/state em falta.")
+    with _OAUTH_LOCK:
+        info = _OAUTH_PENDING.pop(state, None)
+    if not info or (time.time() - info.get("created_at", 0) > 900):
+        raise ValueError("Sessão OAuth expirada ou inválida. Tenta ligar novamente.")
+    inst = info["instance"]
+    _validate_remote_http_url(inst)
+    tok_res = http("POST", f"{inst}/oauth/token", data={
+        "client_id": info["client_id"],
+        "client_secret": info["client_secret"],
+        "redirect_uri": info["redirect_uri"],
+        "grant_type": "authorization_code",
+        "code": code,
+        "scope": info["scopes"],
+    })
+    access_token = (tok_res or {}).get("access_token")
+    if not access_token:
+        raise ApiError("Não foi possível obter access_token OAuth do Pixelfed.")
+    return {"instance": inst, "token": access_token}
 
 
 def init_clients(cfg):
@@ -4266,6 +4348,7 @@ class H(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        global CFG, CLIENTS
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         if not self.allowed():
@@ -4714,6 +4797,40 @@ class H(BaseHTTPRequestHandler):
                 "hashtags": all_hashtags,
                 "errors": errors
             })
+        if path == "/api/bookmarks":
+            if "pixelfed" not in CLIENTS:
+                return self.send(200, {"items": [], "cursor": None})
+            qs = urllib.parse.parse_qs(parsed.query)
+            cursor = qs.get("cursor", [None])[0]
+            try:
+                its, nxt = CLIENTS["pixelfed"].bookmarks(cursor=cursor)
+                return self.send(200, {"items": its, "cursor": nxt})
+            except Exception as e:
+                return self.send(200, {"items": [], "cursor": None, "error": str(e)})
+        if path == "/api/pixelfed/oauth/callback":
+            qs = urllib.parse.parse_qs(parsed.query)
+            code = qs.get("code", [""])[0]
+            state = qs.get("state", [""])[0]
+            try:
+                pf_cred = complete_pixelfed_oauth(code, state)
+                new_cfg = dict(CFG)
+                new_cfg["port"] = PORT
+                new_cfg["pixelfed"] = pf_cred
+                new_cfg.pop("mastodon", None)
+                write_config(new_cfg)
+                CFG = new_cfg
+                CLIENTS = init_clients(CFG)
+                redir = "/?oauth=pixelfed_ok"
+            except Exception as e:
+                err_q = urllib.parse.quote(str(e))
+                redir = f"/?oauth_error={err_q}"
+            html_redir = (
+                "<!doctype html><html><head><meta charset='utf-8'>"
+                f"<meta http-equiv='refresh' content='0;url={html.escape(redir)}'>"
+                f"<script>window.location.replace({json.dumps(redir)});</script>"
+                "</head><body>A concluir autenticação Pixelfed…</body></html>"
+            )
+            return self.send(200, html_redir.encode("utf-8"), "text/html")
         self.send(404, {"error": "not found"})
 
     def do_POST(self):
@@ -4858,6 +4975,15 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, {"ok": True, "summary": summary})
             except Exception as e:
                 return self.send(200, {"ok": False, "error": str(e)})
+        if self.path == "/api/pixelfed/oauth/start":
+            inst = (d.get("instance") or "https://pixelfed.de").strip()
+            host_hdr = (self.headers.get("Host") or f"127.0.0.1:{PORT}").strip()
+            origin = (d.get("origin") or f"http://{host_hdr}").strip()
+            try:
+                res = start_pixelfed_oauth(inst, origin)
+                return self.send(200, {"ok": True, **res})
+            except Exception as e:
+                return self.send(400, {"ok": False, "error": str(e)})
         if self.path == "/api/setup":
             new_cfg = dict(CFG)
             new_cfg["port"] = PORT
@@ -4906,7 +5032,7 @@ class H(BaseHTTPRequestHandler):
                     new_cfg.pop("ai", None)
 
             test_clients = init_clients(new_cfg)
-            if not test_clients:
+            if not test_clients and not d.get("allow_empty"):
                 return self.send(400, {"error": "Introduz dados de acesso válidos para pelo menos uma das redes."})
 
             try:

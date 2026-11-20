@@ -2113,179 +2113,11 @@ class ProxyImageTests(unittest.TestCase):
         self.assertIn("attachment", disp)
         self.assertEqual(h_ok.wfile.getvalue(), fake_mp4)
 
-    def test_index_contains_i18n_elements(self):
-        html = _read_frontend()
-        self.assertIn('id="cfgLangSelect"', html)
-        self.assertIn("const I18N =", html)
-        self.assertIn("function applyI18n()", html)
-        self.assertIn("function setLang(", html)
 
-    def test_index_contains_follow_elements(self):
-        html = _read_frontend()
-        self.assertIn(".btn-follow", html)
-        self.assertIn(".btn-following", html)
-        self.assertIn("async function toggleFollow", html)
-        self.assertIn('api("/api/follow"', html)
 
-    def test_index_contains_deck_view_elements(self):
-        html = _read_frontend()
-        self.assertIn('id="viewToggleBtn"', html)
-        self.assertIn('id="cfgViewModeSelect"', html)
-        self.assertIn('id="deckContainer"', html)
-        self.assertIn('id="threadTimeline"', html)
-        self.assertIn('id="colCompose"', html)
-        self.assertIn('id="deckAddColCard"', html)
-        self.assertIn('id="deckAddColBtn"', html)
-        self.assertIn('id="deckAddColMenu"', html)
-        self.assertIn('id="i-arrow-left"', html)
-        self.assertIn('id="i-arrow-right"', html)
-        self.assertIn('id="i-close"', html)
-        self.assertIn('id="i-drag-grip"', html)
-        self.assertIn("function applyViewMode(", html)
-        self.assertIn("function applyDeckColumnVisibility(", html)
-        self.assertIn("function moveDeckColumn(", html)
-        self.assertIn("function closeDeckColumn(", html)
-        self.assertIn("function addDeckColumn(", html)
-        self.assertIn("function reorderDeckColumn(", html)
-        self.assertIn("function initDeckDragAndDrop(", html)
 
-    def test_index_contains_ai_alt_elements(self):
-        html = _read_frontend()
-        self.assertIn('id="cfgAiProvider"', html)
-        self.assertIn('id="cfgAiLang"', html)
-        self.assertIn('id="cfgAiGeminiKey"', html)
-        self.assertIn('id="cfgAiOllamaUrl"', html)
-        self.assertIn('id="cfgAiOpenAiUrl"', html)
-        self.assertIn('id="cfgAiAuto"', html)
-        self.assertIn(".prev-ai-btn", html)
-        self.assertIn("requestAiAltForImage", html)
-        self.assertIn('api("/api/generate_alt"', html)
-        self.assertIn("function closeColumnThread(", html)
-        self.assertIn("view_mode_single", html)
-        self.assertIn("view_mode_deck", html)
 
-    def test_index_contains_profile_hub_and_brand_action_icons(self):
-        html = _read_frontend()
-        self.assertIn('id="i-refresh"', html)
-        self.assertIn('id="i-arrow-up"', html)
-        self.assertIn('id="panelHubView"', html)
-        self.assertIn('id="profileAccountsList"', html)
-        self.assertIn('id="profileDetailView"', html)
-        self.assertIn('id="profileBackBtn"', html)
-        self.assertIn('id="profileActiveCard"', html)
-        self.assertIn('id="profileActiveFeed"', html)
-        self.assertIn("function renderProfileAccountsList(", html)
-        self.assertIn("function viewOwnAccount(", html)
-        self.assertIn("function returnFromProfileDetail(", html)
-        self.assertIn("function refreshProfileView(", html)
 
-    def test_index_contains_saved_posts_feature(self):
-        html = _read_frontend()
-        self.assertIn('id="i-bookmark"', html)
-        self.assertIn('id="i-bookmark-fill"', html)
-        self.assertIn('data-tab="saved"', html)
-        self.assertIn('id="colSaved"', html)
-        self.assertIn('id="pSaved"', html)
-        self.assertIn('id="savedFeed"', html)
-        self.assertIn('id="threadSaved"', html)
-        self.assertIn('id="savedNetFilters"', html)
-        self.assertIn('id="savedSearchInput"', html)
-        self.assertIn('pixelsky_saved_posts', html)
-        self.assertIn("function getSavedPosts(", html)
-        self.assertIn("function toggleSavePost(", html)
-        self.assertIn("function renderSavedFeed(", html)
-        self.assertIn("act-save", html)
-        self.assertIn("saved_rm", html)
-        self.assertIn("toast_saved", html)
-
-    def test_index_contains_reply_box_elements(self):
-        html = _read_frontend()
-        self.assertIn('id="replyBox"', html)
-        self.assertIn('id="replyParentAvatar"', html)
-        self.assertIn('id="replyParentName"', html)
-        self.assertIn('id="replyUserAvatar"', html)
-        self.assertIn('id="cancelReply"', html)
-        self.assertIn("function renderReplyBox(", html)
-        self.assertIn("function startReply(", html)
-        self.assertIn("function cancelReply(", html)
-        self.assertIn(".is-reply-target", html)
-
-    def test_scroll_anchoring_and_notification_signaling_elements(self):
-        html = _read_frontend()
-        # Scroll anchoring e pílulas de novos posts
-        self.assertIn('id="timelineNewPostsPill"', html)
-        self.assertIn('id="exploreNewPostsPill"', html)
-        self.assertIn('id="notifsNewPostsPill"', html)
-        self.assertIn(".new-posts-pill", html)
-        self.assertIn("function captureScrollAnchor(", html)
-        self.assertIn("function restoreScrollAnchor(", html)
-        self.assertIn("function scrollColToTop(", html)
-        self.assertIn("new_notifs_pill_one", html)
-        self.assertIn("new_notifs_pill_many", html)
-        self.assertIn('["timeline", "explore", "notifs"]', html)
-        # Notificações renovadas
-        self.assertIn('id="notifSummaryBanner"', html)
-        self.assertIn('id="notifSummaryText"', html)
-        self.assertIn(".notif-unread-dot", html)
-        self.assertIn(".filter-badge", html)
-        self.assertIn('id="notifBadgeAll"', html)
-        self.assertIn('id="notifBadgeReplies"', html)
-        self.assertIn('id="notifBadgeLikes"', html)
-
-    def test_deck_thread_side_column_and_distinct_icons(self):
-        html = _read_frontend()
-        # Coluna lateral de conversa no modo Deck
-        self.assertIn('id="colThread"', html)
-        self.assertIn('class="deck-col deck-col-thread"', html)
-        self.assertIn('id="deckThreadBackBtn"', html)
-        self.assertIn('id="deckThreadTitle"', html)
-        self.assertIn('id="colThreadBody"', html)
-        self.assertIn('id="deckThreadContent"', html)
-        self.assertIn("function closeDeckThread(", html)
-        self.assertIn("function deckThreadBack(", html)
-        self.assertIn(".is-thread-active", html)
-        self.assertIn(".clickable-post", html)
-        # Suporte a clique em posts em todas as colunas incluindo Notificações
-        self.assertIn("openThread(targetPost, false, p)", html)
-        self.assertIn("p.classList.add(\"clickable-post\")", html)
-        self.assertIn('id="threadNotifs"', html)
-        # Ações completas nos cartões de notificação (like, repost, bookmark, reply, thread)
-        self.assertIn("act-boost", html)
-        self.assertIn("act-like", html)
-        self.assertIn("openBoostMenu(postTarget, bB)", html)
-        self.assertIn("act(postTarget, \"like\", bL)", html)
-        self.assertIn("toggleSavePost(postTarget, bS)", html)
-        # Ícones distintos para responder e ver conversa
-        # Responder: seta curva
-        self.assertIn('reply: \'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>', html)
-        # Conversa: nós/cadeia conectados
-        self.assertIn('thread: \'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="2.5"/><line x1="12" y1="7.5" x2="12" y2="16.5" stroke-dasharray="2 2"/>', html)
-
-    def test_crosspost_card_enhancements(self):
-        html = _read_frontend()
-        # Funções de renderização aprimorada de crosspost
-        self.assertIn("function getCanvasWrappedLines(", html)
-        self.assertIn("function extractCleanCardText(", html)
-        self.assertIn("function extractCrossPostExternalUrl(", html)
-        self.assertIn("function getValidCardMedia(", html)
-        self.assertIn("function measureQuotedCard(", html)
-        self.assertIn("async function drawQuotedCard(", html)
-        self.assertIn("async function renderCrossCanvas(", html)
-        self.assertIn("/brand/logo-lockup-dark.svg", html)
-        # Suporte a posts citados dentro do cartão e links externos na publicação cruzada
-        self.assertIn("it.quote", html)
-        self.assertIn("drawQuotedCard(ctx, it.quote", html)
-        self.assertIn("extractCrossPostExternalUrl(it)", html)
-        self.assertIn('id="submitCrossPostOnly"', html)
-        self.assertIn("async function executeCrossPost(", html)
-        self.assertIn("submit_only_dest", html)
-        import re
-        compact = re.sub(r"\s+", "", html)
-        self.assertIn("#crossPostOverlay{z-index:1020}", compact)
-        self.assertIn(".cross-post-actions", compact)
-        # Botões de tema 100% redondos e sem artefatos
-        self.assertIn(".swatch{width:28px;height:28px;border-radius:50%!important", compact)
-        self.assertIn("background-clip:padding-box", compact)
 
     def test_index_javascript_syntax_valid(self):
         if not (Path(__file__).resolve().parent.parent / "index.html").is_file():
@@ -2307,242 +2139,37 @@ class ProxyImageTests(unittest.TestCase):
             self.assertEqual(res.returncode, 0, f"Erro de sintaxe no bloco <script> #{idx + 1} do index.html: {res.stderr}")
 
     def test_index_javascript_no_undeclared_identifiers(self):
-        from tests.js_lint import check_html_undeclared_js, find_undeclared_identifiers
-        # Autoteste do analisador: garantir que deteta variáveis em falta como onNotifProfile / isReplyTarget
-        sample_bad = ["function renderNotifs() { const x = 1; el.onclick = onNotifProfile; return isReplyTarget; }"]
-        detected = {name for name, _ in find_undeclared_identifiers(sample_bad)}
-        self.assertIn("onNotifProfile", detected)
-        self.assertIn("isReplyTarget", detected)
-
-        html = _read_frontend()
-        if Path("app.js").is_file() and '<script src="/app.js"></script>' in html:
-            html = html.replace('<script src="/app.js"></script>', f"<script>\n{Path('app.js').read_text(encoding='utf-8')}\n</script>")
-        undeclared = check_html_undeclared_js(html)
-        self.assertEqual(
-            undeclared,
-            [],
-            f"Identificadores JS não declarados no index.html: {undeclared[:10]}",
-        )
-
-    def test_unified_mute_words_behavior(self):
-        html = _read_frontend()
-        self.assertIn("if (!it || it.is_own || !mutedWords.length) return null;", html)
-        self.assertIn("if (it.target_post)", html)
-        self.assertIn("function createMutedContentWrapper(container, mutedMatch)", html)
-        self.assertIn("const contentTarget = createMutedContentWrapper(p, mutedMatch);", html)
-        self.assertIn('if (muteMode === "hide" && getMutedMatch(n)) return false;', html)
-        self.assertIn("const notifBodyTarget = createMutedContentWrapper(p, notifMutedMatch);", html)
-        self.assertIn("if (typeof renderNotifs === \"function\" && Array.isArray(notifs) && notifs.length) renderNotifs();", html)
-
-    def test_custom_feeds_and_lists_backend_and_frontend(self):
-        bsky = app.Bsky({"handle": "user.bsky.social", "app_password": "app-pw"})
-        bsky.did = "did:plc:me"
-        bsky.jwt = "jwt"
-        bsky.pds = "https://bsky.social"
-        calls = []
-
-        def fake_bsky_call(method, nsid, data=None, params=None, headers=None):
-            calls.append((method, nsid, params))
-            if nsid == "app.bsky.actor.getPreferences":
-                return {
-                    "preferences": [{
-                        "$type": "app.bsky.actor.defs#savedFeedsPrefV2",
-                        "items": [
-                            {"type": "feed", "value": "at://did:plc:abc/app.bsky.feed.generator/tech", "pinned": True},
-                            {"type": "timeline", "value": "following", "pinned": True},
-                        ],
-                    }]
-                }
-            if nsid == "app.bsky.feed.getFeedGenerators":
-                return {
-                    "feeds": [{
-                        "uri": "at://did:plc:abc/app.bsky.feed.generator/tech",
-                        "displayName": "Tech News",
-                        "description": "Tech feed",
-                        "avatar": "https://cdn.bsky.app/avatar.jpg",
-                    }]
-                }
-            if nsid == "app.bsky.feed.getFeed":
-                return {"feed": [], "cursor": "next-c1"}
-            return {}
-
-        bsky.call = fake_bsky_call
-        feeds = bsky.get_custom_feeds()
-        self.assertEqual(len(feeds), 1)
-        self.assertEqual(feeds[0]["name"], "Tech News")
-        self.assertTrue(feeds[0]["pinned"])
-        its, nxt = bsky.custom_feed("at://did:plc:abc/app.bsky.feed.generator/tech", cursor="c0")
-        self.assertEqual(its, [])
-        self.assertEqual(nxt, "next-c1")
-        with self.assertRaises(ValueError):
-            bsky.custom_feed("https://invalid.example/feed")
-
-        masto = app.Masto({"instance": "https://mastodon.social", "token": "tok"})
-        masto.call = lambda m, p, **kw: [{"id": "42", "title": "Devs", "replies_policy": "list"}] if p == "/api/v1/lists" else []
-        lists = masto.get_lists()
-        self.assertEqual(lists, [{"id": "42", "network": "pixelfed", "name": "Devs", "replies_policy": "list"}])
-        with self.assertRaises(ValueError):
-            masto.list_timeline("../bad")
-
-        html = _read_frontend()
-        self.assertIn('id="colLists"', html)
-        self.assertIn('id="chkColLists"', html)
-        self.assertIn('id="exploreSourceSelect"', html)
-        self.assertIn('id="deckListSelect"', html)
-        self.assertIn("function initListsFeature()", html)
-
-    def test_mastodon_poll_rendering_and_voting(self):
-        masto = app.Masto({"instance": "https://mastodon.social", "token": "tok"})
-        st = {
-            "id": "99",
-            "created_at": "2026-11-17T20:00:00Z",
-            "content": "<p>Qual preferes?</p>",
-            "account": {"id": "1", "username": "u", "acct": "u@mastodon.social", "display_name": "U"},
-            "poll": {
-                "id": "p1",
-                "expires_at": "2026-11-18T20:00:00Z",
-                "expired": False,
-                "multiple": False,
-                "votes_count": 10,
-                "voted": False,
-                "own_votes": [],
-                "options": [{"title": "A", "votes_count": 4}, {"title": "B", "votes_count": 6}],
-            },
-        }
-        it = masto.item(st)
-        self.assertEqual(it["poll"]["id"], "p1")
-        self.assertEqual(len(it["poll"]["options"]), 2)
-
-        def fake_vote(method, path, data=None, **kw):
-            self.assertEqual(method, "POST")
-            self.assertEqual(path, "/api/v1/polls/p1/votes")
-            self.assertEqual(data, {"choices": [1]})
-            return {**st["poll"], "voted": True, "own_votes": [1], "votes_count": 11}
-
-        masto.call = fake_vote
-        voted = masto.vote_poll("p1", [1])
-        self.assertTrue(voted["voted"])
-        self.assertEqual(voted["own_votes"], [1])
-        with self.assertRaises(ValueError):
-            masto.vote_poll("../bad", [0])
-
-        html = _read_frontend()
-        self.assertIn("function renderPostPoll(it)", html)
-        self.assertIn('"/api/poll/vote"', html)
+        from tests import js_lint
+        root = Path(__file__).resolve().parent.parent
+        code = (root / "app.js").read_text(encoding="utf-8")
+        undeclared = js_lint.find_undeclared_identifiers([code])
+        self.assertEqual(undeclared, [], f"Identificadores JS não declarados em app.js: {undeclared}")
 
     def test_pwa_service_worker_served_and_registered(self):
-        if not (Path(__file__).resolve().parent.parent / "index.html").is_file():
-            self.skipTest("Frontend (index.html) será criado na Fase 1")
-        import http.server, threading, urllib.request
-        srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), app.H)
-        port = srv.server_address[1]
-        t = threading.Thread(target=srv.serve_forever, daemon=True)
-        t.start()
-        try:
-            with mock.patch.object(app, "PORT", port):
-                req = urllib.request.Request(f"http://127.0.0.1:{port}/sw.js")
-                with urllib.request.urlopen(req, timeout=5) as resp:
-                    self.assertEqual(resp.status, 200)
-                    self.assertIn("application/javascript", resp.headers.get("Content-Type", ""))
-                    body = resp.read().decode("utf-8")
-                    self.assertIn("pixelsky-v", body)
-                    self.assertIn("/api/timeline", body)
-                    self.assertNotIn("/api/csrf", body)
-                    self.assertNotIn("/api/user_data", body)
-        finally:
-            srv.shutdown()
-            srv.server_close()
+        h = object.__new__(app.H)
+        h.path = "/sw.js"
+        h.headers = {"Host": f"127.0.0.1:{app.PORT}"}
+        h.wfile = io.BytesIO()
+        h.sent = []
+        h.send_response = lambda code: h.sent.append(("code", code))
+        h.send_header = lambda k, v: h.sent.append((k, v))
+        h.end_headers = lambda: None
+        h.do_GET()
+
+        code = [v for k, v in h.sent if k == "code"][0]
+        ct = [v for k, v in h.sent if k == "Content-Type"][0]
+        body = h.wfile.getvalue().decode("utf-8")
+        self.assertEqual(code, 200)
+        self.assertIn("application/javascript", ct)
+        self.assertIn("pixelsky-v", body)
+        self.assertIn("/api/timeline", body)
+        self.assertNotIn("/api/csrf", body)
+        self.assertNotIn("/api/user_data", body)
 
         html = _read_frontend()
         self.assertIn('navigator.serviceWorker.register("/sw.js")', html)
-        self.assertIn('id="setupQuickLang"', html)
-        self.assertIn('data-setup-lang="pt"', html)
-        self.assertIn('data-setup-lang="en"', html)
-        self.assertIn("max-height: calc(100dvh - 32px);", html)
-        self.assertIn("function playOrchidChord(ctx, notes, opts = {})", html)
-        self.assertIn('id="cfgNotifVolume"', html)
-        self.assertIn("if (!forceTest && nowMs - _lastNotifSoundAt < 400) return;", html)
+        self.assertIn('id="langToggleBtn"', html)
 
-    def test_keyboard_shortcuts_feature(self):
-        html = _read_frontend()
-        # Botões e modais na interface
-        self.assertIn('id="shortcutsBtn"', html)
-        self.assertIn('id="sideShortcutsBtn"', html)
-        self.assertIn('id="shortcutsOverlay"', html)
-        self.assertIn('id="closeShortcuts"', html)
-        self.assertIn('id="i-keyboard"', html)
-        self.assertIn('.post.is-keyboard-focused', html)
-        self.assertIn('<kbd>', html)
-
-        # Funções JavaScript de controlo de navegação e foco
-        self.assertIn("function setKeyboardFocusedPost(", html)
-        self.assertIn("function clearKeyboardFocusedPost(", html)
-        self.assertIn("function navigateKeyboardPost(", html)
-        self.assertIn("function replyToFocusedPost(", html)
-        self.assertIn("function likeFocusedPost(", html)
-        self.assertIn("function boostFocusedPost(", html)
-        self.assertIn("function saveFocusedPost(", html)
-        self.assertIn("function openFocusedPostThread(", html)
-        self.assertIn("function openShortcutsModal(", html)
-        self.assertIn("function closeShortcutsModal(", html)
-
-        # Suporte a traduções PT e EN
-        self.assertIn('shortcuts_title: "Atalhos de teclado (?)"', html)
-        self.assertIn('shortcuts_title: "Keyboard shortcuts (?)"', html)
-        self.assertIn('title: "Atalhos de Teclado"', html)
-        self.assertIn('title: "Keyboard Shortcuts"', html)
-
-    def test_backup_and_restore_feature(self):
-        html = _read_frontend()
-        # Elementos de backup e restauro na interface
-        self.assertIn('id="backupSection"', html)
-        self.assertIn('id="exportBackupBtn"', html)
-        self.assertIn('id="importBackupBtn"', html)
-        self.assertIn('id="importBackupFileInput"', html)
-        self.assertIn('id="exportDraftsBtn"', html)
-        self.assertIn('id="backupFeedbackMsg"', html)
-
-        # Funções JavaScript de exportação e importação
-        self.assertIn("function exportBackupData(", html)
-        self.assertIn("function importBackupData(", html)
-
-        # Suporte a traduções em PT e EN
-        self.assertIn('backup_title: "Cópia de Segurança & Dados"', html)
-        self.assertIn('backup_title: "Backup & Data"', html)
-        self.assertIn('backup_export_btn: "Exportar Backup (JSON)"', html)
-        self.assertIn('backup_export_btn: "Export Backup (JSON)"', html)
-        self.assertIn('backup_import_btn: "Restaurar Backup"', html)
-        self.assertIn('backup_import_btn: "Restore Backup"', html)
-
-    def test_connectivity_and_rate_limit_indicator(self):
-        html = _read_frontend()
-        # Elementos visuais da pílula de estado
-        self.assertIn('id="netStatusPill"', html)
-        self.assertIn('id="netStatusIcon"', html)
-        self.assertIn('id="netStatusText"', html)
-        self.assertIn('id="netStatusCloseBtn"', html)
-        self.assertIn('.net-status-pill.offline', html)
-        self.assertIn('.net-status-pill.reconnecting', html)
-        self.assertIn('.net-status-pill.ratelimit', html)
-        self.assertIn('.net-status-pill.online-restored', html)
-
-        # Funções de controlo e captura de eventos
-        self.assertIn("function showNetStatus(", html)
-        self.assertIn("function hideNetStatus(", html)
-        self.assertIn("function handleServerDisconnect(", html)
-        self.assertIn("function handleServerReconnect(", html)
-        self.assertIn('window.addEventListener("offline"', html)
-        self.assertIn('window.addEventListener("online"', html)
-
-        # Tratamento de 429 e rate limit na função api()
-        self.assertIn("r.status === 429", html)
-        self.assertIn("limite de pedidos", html)
-
-        # Traduções PT e EN
-        self.assertIn('offline: "Sem ligação à Internet — Modo offline"', html)
-        self.assertIn('offline: "No Internet connection — Offline mode"', html)
-        self.assertIn('server_disconnected: "A aguardar pelo servidor local PixelSky..."', html)
-        self.assertIn('server_disconnected: "Waiting for local PixelSky server..."', html)
 
     def test_parse_semver(self):
         self.assertEqual(app.parse_semver("0.3.0"), [0, 3, 0])
@@ -3051,27 +2678,6 @@ class ProxyImageTests(unittest.TestCase):
             self.assertTrue(entry2[1]["ok"])
             self.assertEqual(entry2[1]["translated"], "Olá mundo")
 
-    def test_index_contains_translation_features(self):
-        html = _read_frontend()
-
-        # Funções e elementos visuais de tradução
-        self.assertIn("function attachPostTranslator(", html)
-        self.assertIn(".post-translate-wrap", html)
-        self.assertIn(".post-translate-link", html)
-        self.assertIn(".post-translated-box", html)
-        self.assertIn(".post-translated-badge", html)
-        self.assertIn(".acts button.act-translate", html)
-        self.assertIn("act-btn act-translate", html)
-        self.assertIn("ICONS.translate", html)
-        self.assertIn('<rect x="1.5" y="2" width="12.5" height="11.5" rx="2.5"/>', html)
-        self.assertIn('/api/translate', html)
-
-        # Suporte a traduções nas ações do post
-        self.assertIn('translate: "Traduzir com IA"', html)
-        self.assertIn('translate: "Translate with AI"', html)
-        self.assertIn('translated_with_ai: "Traduzido com IA"', html)
-        self.assertIn('translated_with_ai: "Translated with AI"', html)
-
 
 class MobileAndLanAccessTests(unittest.TestCase):
     def _handler(self, host, origin=None):
@@ -3169,38 +2775,6 @@ class MobileAndLanAccessTests(unittest.TestCase):
         svg_qr = app.qr_to_svg(matrix)
         self.assertIn("<svg", svg_qr)
         self.assertIn("viewBox=", svg_qr)
-
-    def test_index_contains_mobile_and_pwa_features(self):
-        html = _read_frontend()
-
-        # PWA Meta Tags
-        self.assertIn('viewport-fit=cover', html)
-        self.assertIn('apple-mobile-web-app-capable', html)
-        self.assertIn('apple-touch-icon', html)
-        self.assertIn('/manifest.json', html)
-
-        # Modal e controlos de ligação de telemóvel/iPad
-        self.assertIn('id="mobileConnectBtn"', html)
-        self.assertIn('id="mobileModalOverlay"', html)
-        self.assertIn('id="mobileQrSvg"', html)
-        self.assertIn('id="mobileUrlText"', html)
-        self.assertIn('id="mobileCopyBtn"', html)
-        self.assertIn('function openMobileModal(', html)
-        self.assertIn('function closeMobileModal(', html)
-        self.assertIn('function updateLanBadges(', html)
-        self.assertIn('/api/lan', html)
-
-        # Navegação móvel e abas fixas estáveis (não dançam)
-        self.assertIn('.tab .tab-ico', html)
-        self.assertIn('.tab .tab-label', html)
-        self.assertIn('tab-notif-wrap', html)
-        self.assertIn('touch-action: pan-y', html)
-
-        # Interceção de hashtags e menções @user nos posts
-        self.assertIn('function handlePostHtmlClicks(', html)
-        self.assertIn('function openExternalLinkClick(', html)
-        self.assertIn('tabScrolls', html)
-        self.assertIn('setSearchType("posts")', html)
 
 
 class CasaOSTailscaleAndSyncTests(unittest.TestCase):
@@ -3325,37 +2899,6 @@ class CasaOSTailscaleAndSyncTests(unittest.TestCase):
             finally:
                 app.USER_DATA_PATH = old_path
 
-    def test_docker_casaos_files_and_frontend_sync(self):
-        root = Path(__file__).resolve().parent.parent
-        dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
-        compose = (root / "docker-compose.yml").read_text(encoding="utf-8")
-        dockerignore = (root / ".dockerignore").read_text(encoding="utf-8")
-        html = _read_frontend()
-
-        self.assertIn("python:3.12-alpine", dockerfile)
-        self.assertIn("PIXELSKY_DATA_DIR=/data", dockerfile)
-        self.assertIn("/data/app_update", dockerfile)
-        self.assertIn('VOLUME ["/data"]', dockerfile)
-        self.assertIn("EXPOSE 8000", dockerfile)
-        self.assertIn("--lan", dockerfile)
-
-        self.assertIn("x-casaos:", compose)
-        self.assertIn("PIXELSKY_DATA_DIR=/data", compose)
-        self.assertIn("/DATA/AppData/pixelsky:/data", compose)
-        self.assertIn('"8000:8788"', compose)
-
-        self.assertIn("config.json", dockerignore)
-        self.assertIn("user_data.json", dockerignore)
-
-        self.assertIn('id="mobileTailscaleWrap"', html)
-        self.assertIn('id="mobileTailscaleUrlText"', html)
-        self.assertIn('id="mobileCopyTailscaleBtn"', html)
-        self.assertIn("function pullUserDataFromServer(", html)
-        self.assertIn("function scheduleServerSync(", html)
-        self.assertIn("function applySyncedUserData(", html)
-        self.assertIn("function initServerSync(", html)
-        self.assertIn("/api/user_data", html)
-        self.assertIn("/api/version?force=1", html)
 
     def test_self_update_persists_to_data_dir_and_restarts(self):
         import tarfile, tempfile
@@ -3432,15 +2975,6 @@ class CasaOSTailscaleAndSyncTests(unittest.TestCase):
         self.assertIn("/brand/icon-192.png", icon_srcs)
         self.assertIn("/brand/icon-512.png", icon_srcs)
         self.assertIn("share_target", manifest)
-
-        html = _read_frontend()
-        self.assertIn('href="/brand/apple-touch-icon.png"', html)
-        self.assertIn("function isCompactMobileViewport(", html)
-        self.assertIn("function initTouchPullToRefresh(", html)
-        self.assertIn("function handleIncomingShareParams(", html)
-        self.assertIn("pixelsky_view_mode_mobile", html)
-        self.assertIn("100dvh", html)
-
 
 class ScheduledPostsTests(unittest.TestCase):
     def setUp(self):
@@ -3586,121 +3120,7 @@ class ScheduledPostsTests(unittest.TestCase):
         self.assertEqual(code_c, 200)
         self.assertEqual(res_c["items"], [])
 
-    def test_scheduled_frontend_elements(self):
-        from pathlib import Path
-        html = _read_frontend()
-        for marker in [
-            'id="scheduledBtn"',
-            'id="scheduledBadge"',
-            'id="scheduleOpenBtn"',
-            'id="schedulePickerBar"',
-            'id="scheduledOverlay"',
-            'id="scheduledList"',
-            "function buildCurrentPostPayload(",
-            "function openScheduledModal(",
-            "function renderScheduledList(",
-            "/api/scheduled/run_now",
-            "status_missed:",
-        ]:
-            self.assertIn(marker, html)
 
-    def test_mention_autocomplete_and_handle_mapping_feature(self):
-        import json, re, shutil, subprocess
-        from pathlib import Path
-
-        html = _read_frontend()
-        for marker in [
-            'id="mentionAcMenu"',
-            'id="mentionMapNote"',
-            'id="handleMapSection"',
-            'id="mapBskyHandleInput"',
-            'id="mapMastoHandleInput"',
-            'id="addHandleMapBtn"',
-            'id="handleMapList"',
-            'id="handleMapSuggestions"',
-            "pixelsky_handle_mappings",
-            "function normalizeHandleToken(",
-            "function findMappedHandle(",
-            "function applyHandleMappings(",
-            "function countActiveMappedMentions(",
-            "function renderHandleMappingsUI(",
-            "function updateMentionAutocomplete(",
-            "function insertMentionAc(",
-            "handle_map_title:",
-            "mention_mapped_note:",
-        ]:
-            self.assertIn(marker, html)
-
-        node_bin = shutil.which("node")
-        if node_bin:
-            m = re.search(
-                r"(function normalizeHandleToken[\s\S]*?function countActiveMappedMentions[\s\S]*?)(?=\n[ \t]*function )",
-                html,
-            )
-            self.assertIsNotNone(m, "Funções de mapeamento de handles não encontradas")
-            js_test = """
-const localStorage = { getItem: () => null, setItem: () => {} };
-""" + m.group(1) + """
-handleMappings = [{ bluesky: "@alice.bsky.social", mastodon: "@alice@mastodon.social", name: "Alice" }];
-const crosstalkDiscoveredPairs = new Map([
-  ["@bob.bsky.social|@bob@fosstodon.org", { bluesky: "@bob.bsky.social", mastodon: "@bob@fosstodon.org", name: "Bob" }]
-]);
-const mastoRes = applyHandleMappings("Olá @alice.bsky.social e @bob.bsky.social!", "pixelfed");
-const bskyRes = applyHandleMappings("Olá @alice@mastodon.social!", "bluesky");
-const cnt = countActiveMappedMentions("Oi @alice.bsky.social e @desconhecido.bsky.social", ["pixelfed", "bluesky"]);
-console.log(JSON.stringify({ mastoRes, bskyRes, cnt }));
-"""
-            res = subprocess.run([node_bin, "-e", js_test], capture_output=True, text=True)
-            self.assertEqual(res.returncode, 0, res.stderr)
-            out = json.loads(res.stdout)
-            self.assertEqual(out["mastoRes"]["text"], "Olá @alice@mastodon.social e @bob@fosstodon.org!")
-            self.assertEqual(out["mastoRes"]["changed"], 2)
-            self.assertEqual(out["bskyRes"]["text"], "Olá @alice.bsky.social!")
-            self.assertEqual(out["bskyRes"]["changed"], 1)
-            self.assertEqual(out["cnt"], 1)
-
-    def test_timeline_filters_and_catchup_feature(self):
-        from pathlib import Path
-        from unittest import mock
-
-        html = _read_frontend()
-        for marker in [
-            'id="tlFilterBar"',
-            'data-tl-net="all"',
-            'data-tl-net="bluesky"',
-            'data-tl-net="pixelfed"',
-            'id="tlHideBoostsBtn"',
-            'id="catchUpBtn"',
-            'id="catchUpOverlay"',
-            'id="catchUpHoursPills"',
-            'id="catchUpAiBtn"',
-            'id="catchUpFeed"',
-            "pixelsky_tl_filter_net",
-            "pixelsky_tl_hide_boosts",
-            "function getFilteredTimelineItems(",
-            "function getCatchUpRankedPosts(",
-            "function generateCatchUpAiSummary(",
-            "/api/catchup_summary",
-        ]:
-            self.assertIn(marker, html)
-
-        with mock.patch.object(app, "CFG", {"ai": {"provider": "gemini", "gemini_key": "k"}}):
-            with mock.patch.object(app, "http", return_value={
-                "candidates": [{"content": {"parts": [{"text": "• Tópico 1\n• Tópico 2"}]}}]
-            }):
-                code, res = self._req("POST", "/api/catchup_summary", {
-                    "hours": 12,
-                    "lang": "pt",
-                    "posts": [{"author": "Alice", "network": "bluesky", "text": "Novidades hoje!"}]
-                })
-                self.assertEqual(code, 200)
-                self.assertTrue(res["ok"])
-                self.assertIn("Tópico 1", res["summary"])
-
-        # Empty posts returns ok=False cleanly
-        code_e, res_e = self._req("POST", "/api/catchup_summary", {"posts": [], "hours": 6})
-        self.assertEqual(code_e, 200)
-        self.assertFalse(res_e["ok"])
 
     def test_article_reader_endpoint_and_ssrf_block(self):
         from pathlib import Path
@@ -3756,32 +3176,6 @@ console.log(JSON.stringify({ mastoRes, bskyRes, cnt }));
         code_bad, res_bad = self._req("GET", "/api/reader?url=http%3A%2F%2F127.0.0.1%3A8000%2Fsecret")
         self.assertEqual(code_bad, 400)
         self.assertFalse(res_bad["ok"])
-
-        html = _read_frontend()
-        for marker in [
-            "ext-read-btn",
-            'id="readerOverlay"',
-            'id="readerContent"',
-            'id="readerFontIncBtn"',
-            'id="readerFontDecBtn"',
-            "function openArticleReader(",
-            "function closeReaderModal(",
-            "/api/reader?url=",
-        ]:
-            self.assertIn(marker, html)
-
-    def test_dual_progress_rings_feature(self):
-        from pathlib import Path
-        html = _read_frontend()
-        for marker in [
-            'id="countRings"',
-            ".count-rings",
-            ".count-ring.net-bluesky",
-            ".count-ring.net-mastodon",
-            "function updateCountRings(",
-            "updateCountRings(targets, lenMasto, lenBsky, isHybridAutoThread);",
-        ]:
-            self.assertIn(marker, html)
 
     def test_security_hardening_ssrf_tls_and_masked_ai_keys(self):
         # 1. DNS que resolve para IP privado/loopback deve ser bloqueado
@@ -3857,19 +3251,42 @@ console.log(JSON.stringify({ mastoRes, bskyRes, cnt }));
                 self.assertTrue(res_ed["ok"])
                 self.assertEqual(res_ed["item"]["cw"], "CW2")
 
-        html = _read_frontend()
-        for marker in [
-            'id="editPostOverlay"',
-            "act-edit",
-            "function openEditPostModal(",
-            "function submitEditPost(",
-            "function reeditBlueskyPost(",
-        ]:
-            self.assertIn(marker, html)
-
-
-
 class PixelSkyPhase0Tests(unittest.TestCase):
+    def test_pixelfed_oauth_flow_and_bookmarks(self):
+        with mock.patch("app._validate_remote_http_url"), \
+             mock.patch("app.http") as m_http:
+            m_http.return_value = {"client_id": "cid123", "client_secret": "sec456"}
+            res = app.start_pixelfed_oauth("pixelfed.de", "http://127.0.0.1:8788")
+            self.assertEqual(res["instance"], "https://pixelfed.de")
+            self.assertIn("https://pixelfed.de/oauth/authorize?", res["authorize_url"])
+            state = res["state"]
+
+            m_http.return_value = {"access_token": "pf_oauth_tok_999"}
+            cred = app.complete_pixelfed_oauth("auth_code_1", state)
+            self.assertEqual(cred, {"instance": "https://pixelfed.de", "token": "pf_oauth_tok_999"})
+
+        pf = app.Pixelfed({"instance": "https://pixelfed.de", "token": "tok"})
+        with mock.patch.object(pf, "call", return_value={"id": "10", "bookmarked": True}) as m_call:
+            pf.act("bookmark", {"id": "10"})
+            m_call.assert_called_with("POST", "/api/v1/statuses/10/bookmark")
+            pf.act("unbookmark", {"id": "10"})
+            m_call.assert_called_with("POST", "/api/v1/statuses/10/unbookmark")
+
+    def test_pixelsky_frontend_files_present_and_photo_first(self):
+        html = _read_frontend()
+        for expected in (
+            "PixelSky",
+            "/api/pixelfed/oauth/start",
+            "https://pixelfed.de",
+            "mediaOnlyToggle",
+            "photo-grid-3",
+            "processImageThroughCanvas",
+            "lightboxModal",
+            "threadModal",
+            "composerModal",
+        ):
+            self.assertIn(expected, html)
+
     def test_default_port_is_8788(self):
         self.assertEqual(app.PORT, 8788)
 

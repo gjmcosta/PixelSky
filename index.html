@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="pt" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B0D12">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="csrf-token" content="">
+  <title>PixelSky — Pixelfed &amp; Bluesky</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg">
+  <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+  <link rel="stylesheet" href="/app.css">
+  <script src="/vendor/hls.min.js" defer></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell" id="appShell">
+    <!-- Left Navigation Rail (Desktop) / Bottom Bar (Mobile) -->
+    <aside class="nav-rail" aria-label="Navegação Principal">
+      <div class="brand-header">
+        <a href="#" class="brand-logo" id="brandHomeBtn" aria-label="PixelSky">
+          <img src="/brand/favicon.svg" alt="" class="brand-icon" width="32" height="32">
+          <span class="brand-title">PixelSky</span>
+        </a>
+        <div class="network-dots" id="networkStatusDots" title="Redes ligadas"></div>
+      </div>
+
+      <nav class="nav-links">
+        <button type="button" class="nav-btn active" data-view="feed" id="navFeedBtn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5.5v-6h-5v6H4a1 1 0 0 1-1-1v-9.5z"/></svg>
+          <span data-i18n="nav_feed">Feed</span>
+        </button>
+        <button type="button" class="nav-btn" data-view="explore" id="navExploreBtn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.8-3.8"/></svg>
+          <span data-i18n="nav_explore">Explorar</span>
+        </button>
+        <button type="button" class="nav-btn nav-btn-compose" id="navComposeBtn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="12" cy="12" r="3.2"/><path d="M17.5 8.5h.01"/></svg>
+          <span data-i18n="nav_publish">Publicar</span>
+        </button>
+        <button type="button" class="nav-btn" data-view="notifications" id="navNotifBtn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a2.2 2.2 0 0 0 2.2-2.2H9.8A2.2 2.2 0 0 0 12 21zm6-5V11a6 6 0 1 0-12 0v5l-2 2v1h16v-1l-2-2z"/></svg>
+          <span data-i18n="nav_notifications">Atividade</span>
+          <span class="nav-badge hidden" id="notifBadge"></span>
+        </button>
+        <button type="button" class="nav-btn" data-view="saved" id="navSavedBtn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12a1 1 0 0 1 1 1v16l-7-4-7 4V5a1 1 0 0 1 1-1z"/></svg>
+          <span data-i18n="nav_saved">Guardados</span>
+        </button>
+        <button type="button" class="nav-btn" data-view="profile" id="navProfileBtn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          <span data-i18n="nav_profile">Perfil</span>
+        </button>
+      </nav>
+
+      <div class="nav-footer">
+        <button type="button" class="icon-pill-btn" id="openLanModalBtn" title="Telemóvel / LAN / Tailscale">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><circle cx="12" cy="18" r="1"/></svg>
+          <span data-i18n="nav_mobile">Telemóvel / QR</span>
+        </button>
+        <div class="nav-footer-row">
+          <button type="button" class="chip-btn" id="langToggleBtn" title="Mudar idioma / Change language">PT</button>
+          <button type="button" class="chip-btn" id="themeToggleBtn" title="Alternar tema Darkroom / Claro">☾</button>
+          <button type="button" class="chip-btn" id="openSettingsBtn" title="Contas &amp; Definições">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.85 1 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Stage -->
+    <main class="main-stage">
+      <!-- Top Sticky Header -->
+      <header class="stage-header">
+        <div class="header-top-row">
+          <div class="mobile-brand">
+            <img src="/brand/favicon.svg" alt="" width="26" height="26">
+            <span>PixelSky</span>
+          </div>
+          <div class="network-pills" id="networkFilterPills" role="tablist">
+            <button type="button" class="pill active" data-net="all" data-i18n="filter_all">Todas</button>
+            <button type="button" class="pill" data-net="pixelfed">
+              <span class="net-dot dot-pixelfed"></span>Pixelfed
+            </button>
+            <button type="button" class="pill" data-net="bluesky">
+              <span class="net-dot dot-bluesky"></span>Bluesky
+            </button>
+          </div>
+          <div class="header-actions">
+            <button type="button" class="toggle-pill active" id="mediaOnlyToggle" title="Mostrar apenas publicações com fotografia ou vídeo">
+              <span class="toggle-dot"></span>
+              <span data-i18n="filter_media_only">Só Media</span>
+            </button>
+            <button type="button" class="icon-btn" id="catchupBtn" title="Resumo IA Catch-up">✨</button>
+            <button type="button" class="icon-btn" id="refreshFeedBtn" title="Atualizar">↻</button>
+            <button type="button" class="icon-btn mobile-only" id="mobileSettingsBtn" title="Definições">⚙</button>
+          </div>
+        </div>
+        <!-- Custom Feeds strip (Bluesky visual feeds / Pixelfed lists) -->
+        <div class="custom-feeds-bar hidden" id="customFeedsBar"></div>
+      </header>
+
+      <!-- Onboarding / Empty Auth Banner -->
+      <section class="onboarding-card hidden" id="onboardingSection">
+        <div class="onboarding-hero">
+          <img src="/brand/app-icon.svg" alt="PixelSky" width="64" height="64">
+          <div>
+            <h1 data-i18n="welcome_title">Bem-vindo ao PixelSky</h1>
+            <p data-i18n="welcome_sub">A tua galeria local-first para Pixelfed (Fediverso) e Bluesky / Flashes.</p>
+          </div>
+        </div>
+        <div class="onboarding-grid">
+          <!-- Pixelfed OAuth 2.0 Card -->
+          <div class="auth-box auth-box-pixelfed">
+            <div class="auth-box-header">
+              <span class="net-badge badge-pixelfed">Pixelfed</span>
+              <span class="auth-status-tag" id="pfStatusTag" data-i18n="status_disconnected">Não ligado</span>
+            </div>
+            <p class="auth-help" data-i18n="pf_oauth_desc">Liga a tua conta com OAuth 2.0 automático no navegador (sugestão: pixelfed.de).</p>
+            <label class="field-label" for="pfInstanceInput" data-i18n="pf_instance_label">Instância Pixelfed</label>
+            <div class="input-with-btn">
+              <input type="url" id="pfInstanceInput" class="text-input" placeholder="https://pixelfed.de" value="https://pixelfed.de">
+              <button type="button" class="btn btn-pixelfed" id="pfOAuthConnectBtn" data-i18n="pf_connect_btn">Ligar com Pixelfed</button>
+            </div>
+          </div>
+
+          <!-- Bluesky App Password Card -->
+          <div class="auth-box auth-box-bluesky">
+            <div class="auth-box-header">
+              <span class="net-badge badge-bluesky">Bluesky / Flashes</span>
+              <span class="auth-status-tag" id="bskyStatusTag" data-i18n="status_disconnected">Não ligado</span>
+            </div>
+            <p class="auth-help" data-i18n="bsky_auth_desc">Usa o teu handle e uma App Password criada nas definições do Bluesky.</p>
+            <div class="form-row-2">
+              <div>
+                <label class="field-label" for="bskyHandleInput">Handle</label>
+                <input type="text" id="bskyHandleInput" class="text-input" placeholder="nome.bsky.social">
+              </div>
+              <div>
+                <label class="field-label" for="bskyPassInput">App Password</label>
+                <input type="password" id="bskyPassInput" class="text-input" placeholder="xxxx-xxxx-xxxx-xxxx">
+              </div>
+            </div>
+            <button type="button" class="btn btn-bluesky" id="bskyConnectBtn" data-i18n="bsky_connect_btn">Guardar &amp; Ligar Bluesky</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Explore Search Bar (shown in Explore view) -->
+      <section class="explore-toolbar hidden" id="exploreToolbar">
+        <form id="searchForm" class="search-bar">
+          <input type="search" id="searchInput" class="text-input" data-i18n-placeholder="search_placeholder" placeholder="Pesquisar fotógrafos, #hashtags ou publicações…">
+          <button type="submit" class="btn btn-primary" data-i18n="search_btn">Pesquisar</button>
+          <button type="button" class="btn btn-ghost hidden" id="clearSearchBtn" data-i18n="clear_btn">Limpar</button>
+        </form>
+        <div id="searchResultsActors" class="actors-strip hidden"></div>
+      </section>
+
+      <!-- Profile Header (shown in Profile view) -->
+      <section class="profile-banner hidden" id="profileHeaderSection"></section>
+
+      <!-- Catch-up AI Summary Banner -->
+      <section class="catchup-card hidden" id="catchupSection">
+        <div class="catchup-header">
+          <strong data-i18n="catchup_title">✨ Resumo IA das últimas horas</strong>
+          <button type="button" class="icon-btn" id="closeCatchupBtn">✕</button>
+        </div>
+        <div class="catchup-body" id="catchupBody"></div>
+      </section>
+
+      <!-- Status / Loading / Toast area -->
+      <div id="feedLoading" class="loading-state hidden">
+        <div class="spinner"></div>
+        <span data-i18n="loading">A revelar fotografias…</span>
+      </div>
+      <div id="feedEmpty" class="empty-state hidden"></div>
+
+      <!-- Feed Stream (Single Column 640px) or 3-Column Photo Grid (Explore / Profile) -->
+      <section id="feedStream" class="feed-stream" aria-live="polite"></section>
+      <section id="photoGrid" class="photo-grid-3 hidden" aria-live="polite"></section>
+
+      <div class="load-more-wrap">
+        <button type="button" class="btn btn-ghost hidden" id="loadMoreBtn" data-i18n="load_more">Carregar mais fotografias</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- Lightbox Modal (Full resolution photo viewer) -->
+  <div class="modal-backdrop hidden" id="lightboxModal" role="dialog" aria-modal="true">
+    <button type="button" class="lightbox-close" id="lightboxCloseBtn" aria-label="Fechar">✕</button>
+    <button type="button" class="lightbox-nav lightbox-prev hidden" id="lightboxPrevBtn" aria-label="Anterior">‹</button>
+    <div class="lightbox-stage">
+      <img id="lightboxImg" src="" alt="">
+      <div class="lightbox-caption" id="lightboxCaption"></div>
+    </div>
+    <button type="button" class="lightbox-nav lightbox-next hidden" id="lightboxNextBtn" aria-label="Seguinte">›</button>
+  </div>
+
+  <!-- Comments & Thread Drawer Modal -->
+  <div class="modal-backdrop hidden" id="threadModal" role="dialog" aria-modal="true">
+    <div class="drawer-panel">
+      <div class="drawer-header">
+        <h2 data-i18n="comments_title">Comentários &amp; Conversa</h2>
+        <button type="button" class="icon-btn" id="closeThreadBtn">✕</button>
+      </div>
+      <div class="drawer-body" id="threadBody"></div>
+      <form class="drawer-reply-form" id="quickReplyForm">
+        <input type="text" id="quickReplyInput" class="text-input" data-i18n-placeholder="reply_placeholder" placeholder="Escreve um comentário…">
+        <button type="submit" class="btn btn-primary" data-i18n="reply_btn">Responder</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Photo-First Composer Modal -->
+  <div class="modal-backdrop hidden" id="composerModal" role="dialog" aria-modal="true">
+    <div class="modal-panel composer-panel">
+      <div class="modal-header">
+        <h2 data-i18n="composer_title">Nova Publicação Fotográfica</h2>
+        <button type="button" class="icon-btn" id="closeComposerBtn">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Target networks -->
+        <div class="composer-targets">
+          <label class="target-check">
+            <input type="checkbox" id="targetPixelfed" value="pixelfed" checked>
+            <span class="net-badge badge-pixelfed">Pixelfed</span>
+          </label>
+          <label class="target-check">
+            <input type="checkbox" id="targetBluesky" value="bluesky" checked>
+            <span class="net-badge badge-bluesky">Bluesky / Flashes</span>
+          </label>
+          <span class="photo-limit-hint" id="photoLimitHint">Máx. 4 fotos (cross-post)</span>
+        </div>
+
+        <!-- Dropzone & Aspect Crop Preset -->
+        <div class="composer-dropzone" id="composerDropzone">
+          <input type="file" id="composerFileInput" accept="image/*,video/mp4,video/quicktime" multiple class="hidden">
+          <div class="dropzone-prompt" id="dropzonePrompt">
+            <svg viewBox="0 0 24 24" width="36" height="36"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="12" cy="12" r="3.2"/></svg>
+            <p data-i18n="dropzone_text">Arrasta fotografias ou clica para escolher (EXIF/GPS limpo automaticamente)</p>
+            <div class="crop-presets">
+              <span data-i18n="crop_label">Enquadramento:</span>
+              <button type="button" class="chip-btn active" data-crop="original">Original</button>
+              <button type="button" class="chip-btn" data-crop="1:1">1:1</button>
+              <button type="button" class="chip-btn" data-crop="4:5">4:5</button>
+              <button type="button" class="chip-btn" data-crop="16:9">16:9</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Uploaded photos preview + AI Alt-Text per photo -->
+        <div class="composer-media-list" id="composerMediaList"></div>
+
+        <!-- Caption & CW & Schedule -->
+        <textarea id="composerCaption" class="text-input composer-textarea" rows="3" data-i18n-placeholder="caption_placeholder" placeholder="Escreve uma legenda, história ou #hashtags…"></textarea>
+
+        <div class="composer-extras">
+          <input type="text" id="composerCw" class="text-input" data-i18n-placeholder="cw_placeholder" placeholder="Aviso de conteúdo / Spoiler (opcional)">
+          <input type="datetime-local" id="composerSchedule" class="text-input" title="Agendar publicação (opcional)">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="saveDraftBtn" data-i18n="save_draft_btn">Guardar Rascunho</button>
+        <button type="button" class="btn btn-primary" id="publishPostBtn" data-i18n="publish_btn">Publicar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings, Accounts, AI & Muted Words Modal -->
+  <div class="modal-backdrop hidden" id="settingsModal" role="dialog" aria-modal="true">
+    <div class="modal-panel settings-panel">
+      <div class="modal-header">
+        <h2 data-i18n="settings_title">Contas, IA &amp; Preferências</h2>
+        <button type="button" class="icon-btn" id="closeSettingsBtn">✕</button>
+      </div>
+      <div class="modal-body">
+        <h3 data-i18n="accounts_heading">Contas Ligadas</h3>
+        <div class="settings-section">
+          <label class="field-label" data-i18n="pf_instance_label">Instância Pixelfed (OAuth 2.0)</label>
+          <div class="input-with-btn">
+            <input type="url" id="settingsPfInstance" class="text-input" placeholder="https://pixelfed.de" value="https://pixelfed.de">
+            <button type="button" class="btn btn-pixelfed" id="settingsPfOAuthBtn" data-i18n="pf_connect_btn">Ligar com Pixelfed</button>
+            <button type="button" class="btn btn-ghost hidden" id="settingsPfDisconnectBtn" data-i18n="disconnect_btn">Desligar</button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <label class="field-label">Bluesky / Flashes (Handle + App Password)</label>
+          <div class="form-row-2">
+            <input type="text" id="settingsBskyHandle" class="text-input" placeholder="nome.bsky.social">
+            <input type="password" id="settingsBskyPass" class="text-input" placeholder="App Password (xxxx-xxxx-xxxx-xxxx)">
+          </div>
+        </div>
+
+        <h3 data-i18n="ai_heading">Alt-Text IA &amp; Tradução</h3>
+        <div class="settings-section">
+          <div class="form-row-2">
+            <div>
+              <label class="field-label" data-i18n="ai_provider_label">Fornecedor IA</label>
+              <select id="settingsAiProvider" class="text-input">
+                <option value="none">Desativado</option>
+                <option value="gemini">Google Gemini</option>
+                <option value="ollama">Ollama (Local)</option>
+                <option value="openai">OpenAI / Compatível</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label" data-i18n="ai_key_label">Chave API (Gemini / OpenAI)</label>
+              <input type="password" id="settingsAiKey" class="text-input" placeholder="AIza... ou sk-...">
+            </div>
+          </div>
+        </div>
+
+        <h3 data-i18n="muted_heading">Palavras &amp; Hashtags Silenciadas</h3>
+        <div class="settings-section">
+          <textarea id="settingsMutedWords" class="text-input" rows="2" placeholder="palavra1, #spoiler, politica (separadas por vírgula)"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="saveSettingsBtn" data-i18n="save_settings_btn">Guardar Definições</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile / LAN / Tailscale QR Modal -->
+  <div class="modal-backdrop hidden" id="lanModal" role="dialog" aria-modal="true">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h2 data-i18n="lan_title">Aceder no Telemóvel / iPad (LAN &amp; Tailscale)</h2>
+        <button type="button" class="icon-btn" id="closeLanBtn">✕</button>
+      </div>
+      <div class="modal-body" id="lanModalBody"></div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toastBox" class="toast hidden" role="status" aria-live="polite"></div>
+</body>
+</html>
