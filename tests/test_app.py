@@ -3277,6 +3277,7 @@ class PixelSkyPhase0Tests(unittest.TestCase):
         for expected in (
             "PixelSky",
             "/api/pixelfed/oauth/start",
+            "/api/bluesky/oauth/start",
             "https://pixelfed.de",
             "mediaOnlyToggle",
             "photo-grid-3",
@@ -3286,6 +3287,67 @@ class PixelSkyPhase0Tests(unittest.TestCase):
             "composerModal",
         ):
             self.assertIn(expected, html)
+
+    def test_bluesky_oauth_dpop_and_par_flow(self):
+        priv_pem, jwk_pub = app._generate_es256_keypair()
+        self.assertIn("BEGIN EC PRIVATE KEY", priv_pem)
+        self.assertEqual(jwk_pub["kty"], "EC")
+        self.assertEqual(jwk_pub["crv"], "P-256")
+
+        proof = app.create_dpop_proof(
+            priv_pem, jwk_pub, "POST", "https://bsky.social/oauth/par?foo=1",
+            nonce="srv_nonce_1", access_token="acc_tok_123"
+        )
+        parts = proof.split(".")
+        self.assertEqual(len(parts), 3)
+        hdr = json.loads(base64.urlsafe_b64decode(parts[0] + "===").decode("utf-8"))
+        pay = json.loads(base64.urlsafe_b64decode(parts[1] + "===").decode("utf-8"))
+        self.assertEqual(hdr["typ"], "dpop+jwt")
+        self.assertEqual(hdr["alg"], "ES256")
+        self.assertEqual(pay["htm"], "POST")
+        self.assertEqual(pay["htu"], "https://bsky.social/oauth/par")
+        self.assertEqual(pay["nonce"], "srv_nonce_1")
+        self.assertTrue(pay.get("ath"))
+
+        with mock.patch("app._validate_remote_http_url"), \
+             mock.patch("app.resolve_bsky_pds_for_did", return_value="https://pds.example.com"), \
+             mock.patch("app.http") as m_http, \
+             mock.patch("app._dpop_http") as m_dpop:
+            m_http.side_effect = [
+                {"did": "did:plc:alice123"},
+                {"authorization_servers": ["https://bsky.social"]},
+                {
+                    "issuer": "https://bsky.social",
+                    "pushed_authorization_request_endpoint": "https://bsky.social/oauth/par",
+                    "authorization_endpoint": "https://bsky.social/oauth/authorize",
+                    "token_endpoint": "https://bsky.social/oauth/token",
+                },
+            ]
+            m_dpop.return_value = {"request_uri": "urn:ietf:params:oauth:request_uri:req1"}
+            start_res = app.start_bluesky_oauth("alice.bsky.social", port=8788)
+            self.assertIn("https://bsky.social/oauth/authorize?", start_res["authorize_url"])
+            self.assertIn("request_uri=", start_res["authorize_url"])
+            state = start_res["state"]
+
+            m_dpop.return_value = {
+                "access_token": "bsky_dpop_acc",
+                "refresh_token": "bsky_dpop_ref",
+                "sub": "did:plc:alice123",
+            }
+            m_http.side_effect = [{"handle": "alice.bsky.social"}]
+            cred = app.complete_bluesky_oauth("code_xyz", state)
+            self.assertEqual(cred["auth_type"], "oauth")
+            self.assertEqual(cred["did"], "did:plc:alice123")
+            self.assertEqual(cred["handle"], "alice.bsky.social")
+            self.assertEqual(cred["access_token"], "bsky_dpop_acc")
+
+            clients = app.init_clients({"bluesky": cred})
+            self.assertIn("bluesky", clients)
+            bsky_client = clients["bluesky"]
+            self.assertEqual(bsky_client.auth_type, "oauth")
+            m_dpop.return_value = {"feed": []}
+            items, _ = bsky_client.timeline()
+            self.assertEqual(items, [])
 
     def test_default_port_is_8788(self):
         self.assertEqual(app.PORT, 8788)

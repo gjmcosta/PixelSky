@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """PixelSky: cliente local-first photo-first Pixelfed + Bluesky / Flashes (127.0.0.1)."""
-import argparse, base64, binascii, hmac, html, ipaddress, json, os, re, secrets, socket, ssl, stat, subprocess, sys, threading, time, urllib.error, urllib.parse, urllib.request, uuid, webbrowser, zlib
+import argparse, base64, binascii, hashlib, hmac, html, ipaddress, json, os, re, secrets, socket, ssl, stat, subprocess, sys, tempfile, threading, time, urllib.error, urllib.parse, urllib.request, uuid, webbrowser, zlib
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
@@ -1844,13 +1844,152 @@ def parse_masto_quote(st):
     return out
 
 
+def _b64u(data_bytes):
+    return base64.urlsafe_b64encode(data_bytes).rstrip(b"=").decode("ascii")
+
+
+def _generate_es256_keypair():
+    """Gera um par de chaves ECDSA P-256 (prime256v1) via openssl para DPoP OAuth 2.0 (AT Protocol)."""
+    with tempfile.NamedTemporaryFile(prefix="ps_ec_", suffix=".pem", delete=True) as tf:
+        os.chmod(tf.name, 0o600)
+        subprocess.run(
+            ["openssl", "ecparam", "-name", "prime256v1", "-genkey", "-noout", "-out", tf.name],
+            check=True, capture_output=True, timeout=10
+        )
+        priv_pem = Path(tf.name).read_text(encoding="utf-8")
+        pub_der = subprocess.run(
+            ["openssl", "ec", "-in", tf.name, "-pubout", "-outform", "DER"],
+            check=True, capture_output=True, timeout=10
+        ).stdout
+    if len(pub_der) < 65 or pub_der[-65] != 0x04:
+        raise RuntimeError("Chave pública P-256 DER inválida gerada pelo openssl.")
+    x_b64 = _b64u(pub_der[-64:-32])
+    y_b64 = _b64u(pub_der[-32:])
+    return priv_pem, {"kty": "EC", "crv": "P-256", "x": x_b64, "y": y_b64}
+
+
+def _der_ecdsa_to_raw_rs(sig_der):
+    """Converte uma assinatura ECDSA ASN.1 DER (SEQUENCE {r, s}) para 64 bytes R || S (RFC 7515 ES256)."""
+    if not sig_der or sig_der[0] != 0x30:
+        raise ValueError("Assinatura ECDSA DER inválida.")
+    idx = 2 if sig_der[1] < 0x80 else 2 + (sig_der[1] & 0x7F)
+    if sig_der[idx] != 0x02:
+        raise ValueError("Componente R inválido na assinatura DER.")
+    r_len = sig_der[idx + 1]
+    r_bytes = sig_der[idx + 2 : idx + 2 + r_len].lstrip(b"\x00").rjust(32, b"\x00")
+    idx += 2 + r_len
+    if sig_der[idx] != 0x02:
+        raise ValueError("Componente S inválido na assinatura DER.")
+    s_len = sig_der[idx + 1]
+    s_bytes = sig_der[idx + 2 : idx + 2 + s_len].lstrip(b"\x00").rjust(32, b"\x00")
+    return r_bytes[:32] + s_bytes[:32]
+
+
+def _sign_es256_jwt(header_obj, payload_obj, private_pem):
+    """Assina um JWT ES256 (DPoP proof) usando a chave privada P-256."""
+    h_b64 = _b64u(json.dumps(header_obj, separators=(",", ":")).encode("utf-8"))
+    p_b64 = _b64u(json.dumps(payload_obj, separators=(",", ":")).encode("utf-8"))
+    signing_input = f"{h_b64}.{p_b64}"
+    with tempfile.NamedTemporaryFile(prefix="ps_sign_", suffix=".pem", mode="w", encoding="utf-8", delete=True) as tf:
+        os.chmod(tf.name, 0o600)
+        tf.write(private_pem)
+        tf.flush()
+        sig_der = subprocess.run(
+            ["openssl", "dgst", "-sha256", "-sign", tf.name],
+            input=signing_input.encode("ascii"),
+            check=True, capture_output=True, timeout=10
+        ).stdout
+    raw_rs = _der_ecdsa_to_raw_rs(sig_der)
+    return f"{signing_input}.{_b64u(raw_rs)}"
+
+
+def create_dpop_proof(private_pem, jwk_pub, htm, htu, nonce=None, access_token=None):
+    """Constrói um DPoP proof JWT (RFC 9449) para o Bluesky / AT Protocol."""
+    p = urllib.parse.urlparse(htu)
+    clean_htu = f"{p.scheme}://{p.netloc}{p.path}"
+    now_s = int(time.time())
+    header = {
+        "typ": "dpop+jwt",
+        "alg": "ES256",
+        "jwk": jwk_pub,
+    }
+    payload = {
+        "jti": secrets.token_urlsafe(16),
+        "htm": htm.upper(),
+        "htu": clean_htu,
+        "iat": now_s,
+        "exp": now_s + 120,
+    }
+    if nonce:
+        payload["nonce"] = nonce
+    if access_token:
+        payload["ath"] = _b64u(hashlib.sha256(access_token.encode("ascii")).digest())
+    return _sign_es256_jwt(header, payload, private_pem)
+
+
+def _dpop_http(method, url, private_pem, jwk_pub, nonce_cache=None, data=None, form_data=None, access_token=None, headers=None, timeout=30):
+    """Executa um pedido HTTP autenticado com DPoP e renovação automática de DPoP-Nonce (400/401 use_dpop_nonce)."""
+    if nonce_cache is None:
+        nonce_cache = {}
+    netloc = urllib.parse.urlparse(url).netloc
+    body = None
+    ctype = None
+    if form_data is not None:
+        body = urllib.parse.urlencode(form_data).encode("utf-8")
+        ctype = "application/x-www-form-urlencoded"
+    elif isinstance(data, (bytes, bytearray)):
+        body = data
+    elif data is not None:
+        body = json.dumps(data).encode("utf-8")
+        ctype = "application/json"
+
+    for attempt in range(2):
+        cur_nonce = nonce_cache.get(netloc)
+        proof = create_dpop_proof(private_pem, jwk_pub, method, url, nonce=cur_nonce, access_token=access_token)
+        req = urllib.request.Request(url, data=body, method=method)
+        req.add_header("User-Agent", "PixelSky/1.0")
+        req.add_header("DPoP", proof)
+        if access_token:
+            req.add_header("Authorization", f"DPoP {access_token}")
+        if ctype:
+            req.add_header("Content-Type", ctype)
+        for k, v in (headers or {}).items():
+            req.add_header(k, v)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout, context=SSL_CTX) as resp:
+                new_n = resp.headers.get("DPoP-Nonce") or resp.headers.get("dpop-nonce")
+                if new_n:
+                    nonce_cache[netloc] = new_n
+                raw = resp.read().decode("utf-8")
+                return json.loads(raw) if raw else {}
+        except urllib.error.HTTPError as e:
+            new_n = (e.headers.get("DPoP-Nonce") or e.headers.get("dpop-nonce")) if e.headers else None
+            raw_err = e.read().decode("utf-8", "replace")
+            if new_n:
+                nonce_cache[netloc] = new_n
+            if attempt == 0 and e.code in (400, 401) and ("use_dpop_nonce" in raw_err or (new_n and new_n != cur_nonce)):
+                continue
+            ctype_err = e.headers.get("Content-Type", "") if e.headers else ""
+            summary = _clean_http_error_summary(e.code, raw_err, ctype_err)
+            raise ApiError(f"{e.code} {e.reason}: {summary}", status=e.code, retry_after=_retry_after(e.headers), body=raw_err) from None
+
+
 class Bsky:
     name = "bluesky"
 
     def __init__(self, c):
-        self.c, self.jwt, self.refresh_jwt, self.did = c, None, None, None
-        self.host = c.get("service", "https://bsky.social")
-        self.pds = None
+        self.c = c
+        self.auth_type = c.get("auth_type", "app_password")
+        self.jwt = c.get("access_token") if self.auth_type == "oauth" else None
+        self.refresh_jwt = c.get("refresh_token") if self.auth_type == "oauth" else None
+        self.did = c.get("did") if self.auth_type == "oauth" else None
+        self.pds = c.get("pds") if self.auth_type == "oauth" else None
+        self.host = (self.pds or c.get("service", "https://bsky.social")).rstrip("/")
+        self.private_pem = c.get("private_pem")
+        self.jwk_pub = c.get("jwk_pub")
+        self.token_endpoint = c.get("token_endpoint", "https://bsky.social/oauth/token")
+        self.client_id = c.get("client_id", "")
+        self.nonce_cache = {}
         self.lock = threading.RLock()  # protege login/refresh em pedidos concorrentes
         self._handle_cache = {}
 
@@ -1874,6 +2013,11 @@ class Bsky:
 
     def login(self):
         with self.lock:
+            if self.auth_type == "oauth":
+                if self.refresh_jwt:
+                    self._refresh_oauth()
+                    return
+                raise ApiError("Sessão OAuth do Bluesky expirada. Liga novamente a conta Bluesky.")
             r = http("POST", self.host + "/xrpc/com.atproto.server.createSession",
                      {"identifier": self.c["handle"], "password": self.c["app_password"]})
             self.jwt, self.refresh_jwt, self.did = r["accessJwt"], r.get("refreshJwt"), r["did"]
@@ -1884,15 +2028,48 @@ class Bsky:
                     break
             self.pds = pds_endpoint or self.host
 
+    def _refresh_oauth(self):
+        with self.lock:
+            tok_res = _dpop_http(
+                "POST",
+                self.token_endpoint,
+                self.private_pem,
+                self.jwk_pub,
+                nonce_cache=self.nonce_cache,
+                form_data={
+                    "client_id": self.client_id,
+                    "grant_type": "refresh_token",
+                    "refresh_token": self.refresh_jwt,
+                }
+            )
+            new_acc = tok_res.get("access_token")
+            if not new_acc:
+                raise ApiError("Não foi possível renovar o token OAuth do Bluesky.")
+            self.jwt = new_acc
+            self.refresh_jwt = tok_res.get("refresh_token") or self.refresh_jwt
+            self.did = tok_res.get("sub") or self.did
+            self.c["access_token"] = self.jwt
+            self.c["refresh_token"] = self.refresh_jwt
+            try:
+                if isinstance(CFG.get("bluesky"), dict) and CFG["bluesky"].get("auth_type") == "oauth":
+                    CFG["bluesky"]["access_token"] = self.jwt
+                    CFG["bluesky"]["refresh_token"] = self.refresh_jwt
+                    write_config(CFG)
+            except Exception:
+                pass
+
     def _ensure(self):
         with self.lock:
             if not self.jwt:
                 self.login()
 
     def _renew(self, failed_jwt):
-        """Renova a sessão: primeiro refreshSession; só se falhar volta a createSession."""
+        """Renova a sessão: primeiro refreshSession/refresh_token; só se falhar volta a createSession."""
         with self.lock:
             if self.jwt != failed_jwt:  # outro pedido já renovou entretanto
+                return
+            if self.auth_type == "oauth":
+                self._refresh_oauth()
                 return
             if self.refresh_jwt:
                 try:
@@ -1912,7 +2089,18 @@ class Bsky:
 
     @staticmethod
     def _expired(e):
-        return "ExpiredToken" in str(e) or str(e).startswith("401")
+        s = str(e)
+        return "ExpiredToken" in s or "invalid_token" in s or s.startswith("401")
+
+    def _http_req(self, method, url, data=None, jwt=None, headers=None):
+        if self.auth_type == "oauth":
+            return _dpop_http(
+                method, url, self.private_pem, self.jwk_pub,
+                nonce_cache=self.nonce_cache, data=data, access_token=jwt, headers=headers
+            )
+        if data is None and headers is None:
+            return http(method, url, token=jwt)
+        return http(method, url, data, jwt, headers=headers)
 
     def _authed(self, fn):
         """Executa fn(jwt); se o token expirou, renova a sessão e repete uma vez."""
@@ -1927,8 +2115,9 @@ class Bsky:
             return fn(self.jwt)
 
     def call(self, method, nsid, data=None, params=None, headers=None):
-        url = f"{self.host}/xrpc/{nsid}" + ("?" + urllib.parse.urlencode(params, doseq=True) if params else "")
-        return self._authed(lambda jwt: http(method, url, data, jwt, headers=headers))
+        base_host = (self.pds or self.host).rstrip("/") if self.auth_type == "oauth" else self.host
+        url = f"{base_host}/xrpc/{nsid}" + ("?" + urllib.parse.urlencode(params, doseq=True) if params else "")
+        return self._authed(lambda jwt: self._http_req(method, url, data, jwt, headers=headers))
 
     def item(self, p, reason=None, reply=None):
         a, rec = p["author"], p["record"]
@@ -2211,19 +2400,21 @@ class Bsky:
         return {"posts": posts, "actors": actors, "hashtags": hashtags}
 
     def upload_blob(self, raw_bytes, mime="image/jpeg"):
-        url = f"{self.host}/xrpc/com.atproto.repo.uploadBlob"
-        r = self._authed(lambda jwt: http("POST", url, data=raw_bytes, token=jwt, headers={"Content-Type": mime}))
+        base_host = (self.pds or self.host).rstrip("/") if self.auth_type == "oauth" else self.host
+        url = f"{base_host}/xrpc/com.atproto.repo.uploadBlob"
+        r = self._authed(lambda jwt: self._http_req("POST", url, data=raw_bytes, jwt=jwt, headers={"Content-Type": mime}))
         return r["blob"]
 
     def upload_video(self, raw_bytes, mime="video/mp4", name="video.mp4", max_wait=120):
         """Faz upload de vídeo para o microsserviço do Bluesky (video.bsky.app) e aguarda conclusão."""
         self._ensure()
         # 1. Obter serviceAuth token com escopo para did:web:video.bsky.app
-        auth_url = f"{self.host}/xrpc/com.atproto.server.getServiceAuth"
-        auth_res = self._authed(lambda jwt: http(
+        base_host = (self.pds or self.host).rstrip("/") if self.auth_type == "oauth" else self.host
+        auth_url = f"{base_host}/xrpc/com.atproto.server.getServiceAuth"
+        auth_res = self._authed(lambda jwt: self._http_req(
             "GET",
             auth_url + "?aud=did:web:video.bsky.app&lxm=com.atproto.repo.uploadBlob",
-            token=jwt
+            jwt=jwt
         ))
         service_token = auth_res.get("token")
         if not service_token:
@@ -3294,10 +3485,177 @@ def complete_pixelfed_oauth(code, state):
     return {"instance": inst, "token": access_token}
 
 
+_BSKY_OAUTH_PENDING = {}
+
+
+def start_bluesky_oauth(handle_hint=None, port=None):
+    """Inicia o fluxo OAuth 2.0 Loopback do Bluesky / AT Protocol (PKCE + PAR + DPoP ES256)."""
+    clean_handle = (handle_hint or "").strip().lstrip("@")
+    auth_server = "https://bsky.social"
+    pds_url = None
+    resolved_did = None
+    if clean_handle:
+        if clean_handle.startswith(("http://", "https://")):
+            pds_url = sanitize_pixelfed_instance(clean_handle)
+        else:
+            try:
+                rh = http(
+                    "GET",
+                    "https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?"
+                    + urllib.parse.urlencode({"handle": clean_handle}),
+                    timeout=10
+                )
+                resolved_did = (rh or {}).get("did")
+                if resolved_did:
+                    pds_url = resolve_bsky_pds_for_did(resolved_did)
+            except Exception:
+                pass
+        if pds_url:
+            try:
+                _validate_remote_http_url(pds_url)
+                pr = http("GET", f"{pds_url.rstrip('/')}/.well-known/oauth-protected-resource", timeout=10)
+                srvs = (pr or {}).get("authorization_servers") or []
+                if srvs and isinstance(srvs[0], str):
+                    auth_server = srvs[0].rstrip("/")
+            except Exception:
+                pass
+
+    _validate_remote_http_url(auth_server)
+    meta = http("GET", f"{auth_server}/.well-known/oauth-authorization-server", timeout=10) or {}
+    par_ep = meta.get("pushed_authorization_request_endpoint") or f"{auth_server}/oauth/par"
+    auth_ep = meta.get("authorization_endpoint") or f"{auth_server}/oauth/authorize"
+    token_ep = meta.get("token_endpoint") or f"{auth_server}/oauth/token"
+    issuer = meta.get("issuer") or auth_server
+
+    use_port = int(port or PORT)
+    redirect_uri = f"http://127.0.0.1:{use_port}/api/bluesky/oauth/callback"
+    scope = "atproto transition:generic"
+    client_id = "http://localhost?" + urllib.parse.urlencode(
+        {"redirect_uri": redirect_uri, "scope": scope},
+        quote_via=urllib.parse.quote
+    )
+
+    priv_pem, jwk_pub = _generate_es256_keypair()
+    code_verifier = secrets.token_urlsafe(48)
+    code_challenge = _b64u(hashlib.sha256(code_verifier.encode("ascii")).digest())
+    state = secrets.token_urlsafe(24)
+    nonce_cache = {}
+
+    par_form = {
+        "client_id": client_id,
+        "response_type": "code",
+        "redirect_uri": redirect_uri,
+        "scope": scope,
+        "state": state,
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
+    }
+    if clean_handle and not clean_handle.startswith(("http://", "https://")):
+        par_form["login_hint"] = clean_handle
+
+    par_res = _dpop_http(
+        "POST", par_ep, priv_pem, jwk_pub,
+        nonce_cache=nonce_cache, form_data=par_form
+    )
+    request_uri = (par_res or {}).get("request_uri")
+    if not request_uri:
+        raise ApiError("O servidor OAuth do Bluesky não devolveu request_uri (PAR).")
+
+    now_ts = time.time()
+    with _OAUTH_LOCK:
+        expired = [k for k, v in _BSKY_OAUTH_PENDING.items() if now_ts - v.get("created_at", 0) > 900]
+        for k in expired:
+            _BSKY_OAUTH_PENDING.pop(k, None)
+        _BSKY_OAUTH_PENDING[state] = {
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "code_verifier": code_verifier,
+            "private_pem": priv_pem,
+            "jwk_pub": jwk_pub,
+            "token_endpoint": token_ep,
+            "issuer": issuer,
+            "pds": pds_url,
+            "handle": clean_handle,
+            "did": resolved_did,
+            "nonce_cache": nonce_cache,
+            "created_at": now_ts,
+        }
+
+    auth_qs = urllib.parse.urlencode({"client_id": client_id, "request_uri": request_uri})
+    return {
+        "authorize_url": f"{auth_ep}?{auth_qs}",
+        "state": state,
+        "issuer": issuer,
+    }
+
+
+def complete_bluesky_oauth(code, state):
+    """Conclui o fluxo OAuth 2.0 Loopback do Bluesky trocando o code por tokens DPoP."""
+    code = (code or "").strip()
+    state = (state or "").strip()
+    if not code or not state:
+        raise ValueError("Parâmetros OAuth code/state do Bluesky em falta.")
+    with _OAUTH_LOCK:
+        info = _BSKY_OAUTH_PENDING.pop(state, None)
+    if not info or (time.time() - info.get("created_at", 0) > 900):
+        raise ValueError("Sessão OAuth do Bluesky expirada ou inválida. Tenta ligar novamente.")
+
+    tok_res = _dpop_http(
+        "POST",
+        info["token_endpoint"],
+        info["private_pem"],
+        info["jwk_pub"],
+        nonce_cache=info["nonce_cache"],
+        form_data={
+            "client_id": info["client_id"],
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": info["redirect_uri"],
+            "code_verifier": info["code_verifier"],
+        }
+    )
+    access_token = (tok_res or {}).get("access_token")
+    refresh_token = (tok_res or {}).get("refresh_token")
+    did = (tok_res or {}).get("sub") or info.get("did")
+    if not access_token or not did:
+        raise ApiError("Não foi possível obter access_token/DID OAuth do Bluesky.")
+
+    pds_url = resolve_bsky_pds_for_did(did) or info.get("pds") or "https://bsky.social"
+    handle = info.get("handle") or ""
+    try:
+        prof = http(
+            "GET",
+            "https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?"
+            + urllib.parse.urlencode({"actor": did}),
+            timeout=10
+        )
+        if isinstance(prof, dict) and prof.get("handle"):
+            handle = prof["handle"]
+    except Exception:
+        pass
+
+    return {
+        "auth_type": "oauth",
+        "did": did,
+        "handle": handle or did,
+        "pds": pds_url,
+        "auth_server": info["issuer"],
+        "token_endpoint": info["token_endpoint"],
+        "client_id": info["client_id"],
+        "access_token": access_token,
+        "refresh_token": refresh_token or "",
+        "private_pem": info["private_pem"],
+        "jwk_pub": info["jwk_pub"],
+    }
+
+
 def init_clients(cfg):
     clients = {}
-    if cfg.get("bluesky", {}).get("handle") and cfg.get("bluesky", {}).get("app_password"):
-        clients["bluesky"] = Bsky(cfg["bluesky"])
+    b_cfg = cfg.get("bluesky") or {}
+    if (b_cfg.get("handle") and b_cfg.get("app_password")) or (
+        b_cfg.get("auth_type") == "oauth" and b_cfg.get("access_token") and b_cfg.get("private_pem")
+    ):
+        clients["bluesky"] = Bsky(b_cfg)
     pf_cfg = cfg.get("pixelfed") or cfg.get("mastodon") or {}
     if pf_cfg.get("token") and pf_cfg.get("instance"):
         clients["pixelfed"] = Pixelfed(pf_cfg)
@@ -4606,7 +4964,8 @@ class H(BaseHTTPRequestHandler):
                 "networks": list(CLIENTS),
                 "bluesky": {
                     "configured": "bluesky" in CLIENTS,
-                    "handle": CFG.get("bluesky", {}).get("handle", "")
+                    "handle": CFG.get("bluesky", {}).get("handle", ""),
+                    "auth_type": CFG.get("bluesky", {}).get("auth_type", "app_password" if "bluesky" in CLIENTS else "")
                 },
                 "pixelfed": {
                     "configured": "pixelfed" in CLIENTS,
@@ -4831,6 +5190,29 @@ class H(BaseHTTPRequestHandler):
                 "</head><body>A concluir autenticação Pixelfed…</body></html>"
             )
             return self.send(200, html_redir.encode("utf-8"), "text/html")
+        if path == "/api/bluesky/oauth/callback":
+            qs = urllib.parse.parse_qs(parsed.query)
+            code = qs.get("code", [""])[0]
+            state = qs.get("state", [""])[0]
+            try:
+                bsky_cred = complete_bluesky_oauth(code, state)
+                new_cfg = dict(CFG)
+                new_cfg["port"] = PORT
+                new_cfg["bluesky"] = bsky_cred
+                write_config(new_cfg)
+                CFG = new_cfg
+                CLIENTS = init_clients(CFG)
+                redir = "/?oauth=bluesky_ok"
+            except Exception as e:
+                err_q = urllib.parse.quote(str(e))
+                redir = f"/?oauth_error={err_q}"
+            html_redir = (
+                "<!doctype html><html><head><meta charset='utf-8'>"
+                f"<meta http-equiv='refresh' content='0;url={html.escape(redir)}'>"
+                f"<script>window.location.replace({json.dumps(redir)});</script>"
+                "</head><body>A concluir autenticação Bluesky…</body></html>"
+            )
+            return self.send(200, html_redir.encode("utf-8"), "text/html")
         self.send(404, {"error": "not found"})
 
     def do_POST(self):
@@ -4975,6 +5357,13 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, {"ok": True, "summary": summary})
             except Exception as e:
                 return self.send(200, {"ok": False, "error": str(e)})
+        if self.path == "/api/bluesky/oauth/start":
+            handle_hint = (d.get("handle") or "").strip()
+            try:
+                res = start_bluesky_oauth(handle_hint=handle_hint, port=PORT)
+                return self.send(200, {"ok": True, **res})
+            except Exception as e:
+                return self.send(400, {"ok": False, "error": str(e)})
         if self.path == "/api/pixelfed/oauth/start":
             inst = (d.get("instance") or "https://pixelfed.de").strip()
             host_hdr = (self.headers.get("Host") or f"127.0.0.1:{PORT}").strip()

@@ -126,24 +126,25 @@
             </div>
           </div>
 
-          <!-- Bluesky App Password Card -->
+          <!-- Bluesky OAuth 2.0 + App Password Fallback Card -->
           <div class="auth-box auth-box-bluesky">
             <div class="auth-box-header">
               <span class="net-badge badge-bluesky">Bluesky / Flashes</span>
               <span class="auth-status-tag" id="bskyStatusTag" data-i18n="status_disconnected">Não ligado</span>
             </div>
-            <p class="auth-help" data-i18n="bsky_auth_desc">Usa o teu handle e uma App Password criada nas definições do Bluesky.</p>
-            <div class="form-row-2">
-              <div>
-                <label class="field-label" for="bskyHandleInput">Handle</label>
-                <input type="text" id="bskyHandleInput" class="text-input" placeholder="nome.bsky.social">
-              </div>
-              <div>
-                <label class="field-label" for="bskyPassInput">App Password</label>
-                <input type="password" id="bskyPassInput" class="text-input" placeholder="xxxx-xxxx-xxxx-xxxx">
-              </div>
+            <p class="auth-help" data-i18n="bsky_oauth_desc">Liga a tua conta Bluesky com OAuth 2.0 automático no navegador (ou usa App Password em alternativa).</p>
+            <label class="field-label" for="bskyHandleInput" data-i18n="bsky_handle_label">Handle Bluesky (opcional para OAuth)</label>
+            <div class="input-with-btn">
+              <input type="text" id="bskyHandleInput" class="text-input" placeholder="nome.bsky.social">
+              <button type="button" class="btn btn-bluesky" id="bskyOAuthConnectBtn" data-i18n="bsky_oauth_btn">Ligar com Bluesky</button>
             </div>
-            <button type="button" class="btn btn-bluesky" id="bskyConnectBtn" data-i18n="bsky_connect_btn">Guardar &amp; Ligar Bluesky</button>
+            <details style="margin-top:4px;font-size:0.82rem;color:var(--text-muted)">
+              <summary style="cursor:pointer" data-i18n="bsky_app_pw_toggle">Ou usar App Password (LAN / Tailscale)</summary>
+              <div class="input-with-btn" style="margin-top:8px">
+                <input type="password" id="bskyPassInput" class="text-input" placeholder="App Password (xxxx-xxxx-xxxx-xxxx)">
+                <button type="button" class="btn btn-ghost" id="bskyConnectBtn" data-i18n="bsky_connect_btn">Guardar App Password</button>
+              </div>
+            </details>
           </div>
         </div>
       </section>
@@ -287,11 +288,18 @@
         </div>
 
         <div class="settings-section">
-          <label class="field-label">Bluesky / Flashes (Handle + App Password)</label>
-          <div class="form-row-2">
+          <label class="field-label" data-i18n="bsky_settings_label">Bluesky / Flashes (OAuth 2.0 ou App Password)</label>
+          <div class="input-with-btn">
             <input type="text" id="settingsBskyHandle" class="text-input" placeholder="nome.bsky.social">
-            <input type="password" id="settingsBskyPass" class="text-input" placeholder="App Password (xxxx-xxxx-xxxx-xxxx)">
+            <button type="button" class="btn btn-bluesky" id="settingsBskyOAuthBtn" data-i18n="bsky_oauth_btn">Ligar com Bluesky</button>
+            <button type="button" class="btn btn-ghost hidden" id="settingsBskyDisconnectBtn" data-i18n="disconnect_btn">Desligar</button>
           </div>
+          <details style="margin-top:6px;font-size:0.82rem;color:var(--text-muted)">
+            <summary style="cursor:pointer" data-i18n="bsky_app_pw_toggle">Ou usar App Password (LAN / Tailscale)</summary>
+            <div style="margin-top:8px">
+              <input type="password" id="settingsBskyPass" class="text-input" placeholder="App Password (xxxx-xxxx-xxxx-xxxx)">
+            </div>
+          </details>
         </div>
 
         <h3 data-i18n="ai_heading">Alt-Text IA &amp; Tradução</h3>

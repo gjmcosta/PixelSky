@@ -19,8 +19,13 @@ const I18N = {
     pf_oauth_desc: "Liga a tua conta com OAuth 2.0 automático no navegador (sugestão: pixelfed.de).",
     pf_instance_label: "Instância Pixelfed",
     pf_connect_btn: "Ligar com Pixelfed",
+    bsky_oauth_desc: "Liga a tua conta Bluesky com OAuth 2.0 automático no navegador (ou usa App Password em alternativa).",
+    bsky_handle_label: "Handle Bluesky (opcional para OAuth)",
+    bsky_oauth_btn: "Ligar com Bluesky",
+    bsky_app_pw_toggle: "Ou usar App Password (LAN / Tailscale)",
+    bsky_settings_label: "Bluesky / Flashes (OAuth 2.0 ou App Password)",
     bsky_auth_desc: "Usa o teu handle e uma App Password criada nas definições do Bluesky.",
-    bsky_connect_btn: "Guardar & Ligar Bluesky",
+    bsky_connect_btn: "Guardar App Password",
     search_placeholder: "Pesquisar fotógrafos, #hashtags ou publicações…",
     search_btn: "Pesquisar",
     clear_btn: "Limpar",
@@ -75,8 +80,13 @@ const I18N = {
     pf_oauth_desc: "Connect your account via automatic browser OAuth 2.0 (suggested: pixelfed.de).",
     pf_instance_label: "Pixelfed Instance",
     pf_connect_btn: "Connect with Pixelfed",
+    bsky_oauth_desc: "Connect your Bluesky account via automatic browser OAuth 2.0 (or use an App Password).",
+    bsky_handle_label: "Bluesky Handle (optional for OAuth)",
+    bsky_oauth_btn: "Connect with Bluesky",
+    bsky_app_pw_toggle: "Or use App Password (LAN / Tailscale)",
+    bsky_settings_label: "Bluesky / Flashes (OAuth 2.0 or App Password)",
     bsky_auth_desc: "Use your handle and an App Password created in Bluesky settings.",
-    bsky_connect_btn: "Save & Connect Bluesky",
+    bsky_connect_btn: "Save App Password",
     search_placeholder: "Search photographers, #hashtags, or posts…",
     search_btn: "Search",
     clear_btn: "Clear",
@@ -255,6 +265,22 @@ async function startPixelfedOAuth(instanceInputId) {
   }
 }
 
+async function startBlueskyOAuth(handleInputId) {
+  const inp = document.getElementById(handleInputId);
+  const handle = (inp && inp.value.trim()) || "";
+  try {
+    showToast("A preparar OAuth 2.0 Bluesky…");
+    const res = await apiPost("/api/bluesky/oauth/start", { handle });
+    if (res && res.ok && res.authorize_url) {
+      window.location.href = res.authorize_url;
+    } else {
+      showToast((res && res.error) || "Erro ao iniciar OAuth Bluesky");
+    }
+  } catch (err) {
+    showToast("Erro OAuth Bluesky: " + err.message);
+  }
+}
+
 async function connectBlueskyFromInputs(handleId, passId) {
   const handle = (document.getElementById(handleId)?.value || "").trim();
   const app_password = (document.getElementById(passId)?.value || "").trim();
@@ -322,6 +348,8 @@ function renderStatusIndicators() {
   if (pfIn2) pfIn2.value = pfInst;
   const discBtn = document.getElementById("settingsPfDisconnectBtn");
   if (discBtn) discBtn.classList.toggle("hidden", !state.status.pixelfed?.configured);
+  const bskyDiscBtn = document.getElementById("settingsBskyDisconnectBtn");
+  if (bskyDiscBtn) bskyDiscBtn.classList.toggle("hidden", !state.status.bluesky?.configured);
 }
 
 async function loadCustomFeedsBar() {
@@ -1001,8 +1029,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (urlParams.get("oauth") === "pixelfed_ok") {
     showToast(t("oauth_ok"));
     window.history.replaceState({}, "", "/");
+  } else if (urlParams.get("oauth") === "bluesky_ok") {
+    showToast("Conta Bluesky ligada com sucesso via OAuth 2.0!");
+    window.history.replaceState({}, "", "/");
   } else if (urlParams.get("oauth_error")) {
-    showToast("Erro OAuth Pixelfed: " + urlParams.get("oauth_error"));
+    showToast("Erro OAuth: " + urlParams.get("oauth_error"));
     window.history.replaceState({}, "", "/");
   }
 
@@ -1049,7 +1080,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   /* OAuth & Bluesky Connect Buttons */
   document.getElementById("pfOAuthConnectBtn")?.addEventListener("click", () => startPixelfedOAuth("pfInstanceInput"));
   document.getElementById("settingsPfOAuthBtn")?.addEventListener("click", () => startPixelfedOAuth("settingsPfInstance"));
+  document.getElementById("bskyOAuthConnectBtn")?.addEventListener("click", () => startBlueskyOAuth("bskyHandleInput"));
+  document.getElementById("settingsBskyOAuthBtn")?.addEventListener("click", () => startBlueskyOAuth("settingsBskyHandle"));
   document.getElementById("bskyConnectBtn")?.addEventListener("click", () => connectBlueskyFromInputs("bskyHandleInput", "bskyPassInput"));
+  document.getElementById("settingsBskyDisconnectBtn")?.addEventListener("click", async () => {
+    await apiPost("/api/setup", { bluesky: { handle: "", app_password: "" }, allow_empty: true });
+    await refreshStatusAndLoad();
+  });
 
   /* Catch-up AI Summary */
   document.getElementById("catchupBtn")?.addEventListener("click", async () => {
